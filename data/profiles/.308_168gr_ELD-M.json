@@ -1,0 +1,14 @@
+{
+  "schema": "4trac-bullet-profile/1.0",
+  "name": ".308 Winchester 168 gr ELD-M",
+  "caliberIn": 0.308,
+  "massGr": 168,
+  "lengthIn": 1.307,
+  "diameterIn": 0.308,
+  "twistIn": 10.0,
+  "rightHandTwist": true,
+  "bcLbIn2": 0.462,
+  "bcSigmaFraction": 0.03,
+  "referenceStandard": "G7",
+  "notes": "G7 BC from Hornady ELD-M published data. Suitable for .308 Winchester match loads."
+}

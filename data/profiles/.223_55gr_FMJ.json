@@ -1,0 +1,14 @@
+{
+  "schema": "4trac-bullet-profile/1.0",
+  "name": ".223 Remington 55 gr FMJ",
+  "caliberIn": 0.224,
+  "massGr": 55,
+  "lengthIn": 0.730,
+  "diameterIn": 0.224,
+  "twistIn": 12.0,
+  "rightHandTwist": true,
+  "bcLbIn2": 0.150,
+  "bcSigmaFraction": 0.05,
+  "referenceStandard": "G1",
+  "notes": "G1 BC estimate for 55 gr FMJ. Use with caution; BC varies significantly by manufacturer."
+}

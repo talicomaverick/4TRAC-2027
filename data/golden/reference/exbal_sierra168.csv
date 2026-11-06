@@ -1,0 +1,28 @@
+# Exbal printout transcription - .308 Win, Sierra MatchKing .308" 168gr HPBT.
+# Source: third-party "Report Trace" printout, transcribed in the reference array of
+# gehtsoft-usa/BallisticCalculator1 BallisticCalculator.Test/Calculator/ExbalReportTest.cs
+# (raw.githubusercontent.com/gehtsoft-usa/BallisticCalculator1/main/.../ExbalReportTest.cs,
+# MIT license). Their published tolerances against this printout: velocity 5 fps,
+# drop 0.5 in, time 0.003 s, windage 0.3 in.
+#
+# Configuration (from their test file): muzzle velocity 2561 fps, 100 yd zero,
+# sight height 1.5 in, zeroed in calm air (the wind column is drift left to correct,
+# not part of the zero), wind 10 mph FROM 90 deg (3 o'clock), 29.53 inHg station
+# pressure at altitude 0, 59 F, 78 % relative humidity, no spin drift.
+#
+# Banded G1 BC (Exbal's velocity-banded coefficients): 0.462 above 2600 fps,
+# 0.447 for 2100-2600, 0.424 for 1600-2100, 0.405 below 1600 fps.
+#
+# columns: range_yd, drop_in_vs_los, wind_in_right_positive, velocity_fps, energy_ftlb, tof_s
+# (wind blank at 1000 yd = watermark on the printout)
+0,-1.5,0.0,2561,2446,0.0000
+100,-0.0,-0.8,2368,2091,0.1218
+200,-4.7,-3.4,2184,1778,0.2537
+300,-16.7,-8.0,2003,1497,0.3970
+400,-37.4,-15.0,1828,1247,0.5536
+500,-68.5,-24.6,1663,1031,0.7256
+600,-112.2,-37.3,1508,848,0.9150
+700,-171.3,-53.5,1365,695,1.1242
+800,-249.0,-73.5,1244,577,1.3546
+900,-349.2,-97.2,1144,488,1.6065
+1000,-475.9,,1069,426,1.8783

@@ -1,0 +1,440 @@
+# 4TRAC 2027 — v1 Technical Specification
+
+**Document purpose:** Complete specification of 4TRAC 2027 v1 for human maintenance and AI-assisted further development.  
+**Status:** v1.0 shipped (2026-10-31).  
+**Repository root:** E:\1_My Creations\04_My Projects\4TRAC 2027
+
+---
+
+## 1. Product Definition
+
+4TRAC 2027 is a Windows desktop forensic ballistics tool that solves the **inverse ballistics problem**: given a bullet impact point, impact geometry (exterior angle and azimuth of travel), recovered bullet data, a muzzle-velocity range, and scene atmosphere/wind, it integrates the trajectory **backwards** from the impact and produces a **probability region** — a map-borne highest-density-region (HDR) pair at 50 % and 95 % — showing where the shot most likely originated.
+
+**Core principle:** Region, not point. The most-likely origin is an annotation inside the regions only. Every excluded hypothesis, out-of-envelope result, and assumption gets an explicit line; nothing is silently clamped or smoothed.
+
+**Validated envelope (v1):** flat-earth point-mass model, horizontal range ≤ 10 km. Origins beyond the envelope are rejected, never clamped.
+
+**Runtime:** .NET 8 WPF desktop app, Windows 10/11 x64, single-file self-contained executable (~163 MB), fully offline, no .NET runtime required on target machine.
+
+---
+
+## 2. Solution Architecture
+
+### 2.1 Projects
+
+| Project | Path | Target | Type | Dependencies |
+|---------|------|--------|------|--------------|
+| `4TRAC.Core` | src/4TRAC.Core/4TRAC.Core.csproj | net8.0 | Class library | none (framework only) |
+| `4TRAC.App` | src/4TRAC.App/4TRAC.App.csproj | net8.0-windows | WPF (UseWPF=true) | 4TRAC.Core, Mapsui 5.1.0 + Tiling + Wpf |
+| `4TRAC.Validation` | src/4TRAC.Validation/4TRAC.Validation.csproj | net8.0 | Console | 4TRAC.Core |
+| `4TRAC.Tests` | tests/4TRAC.Tests/4TRAC.Tests.csproj | net8.0 | xUnit test project | 4TRAC.Core, 4TRAC.Validation |
+
+### 2.2 Layering (Core only — no UI or file-system dependencies)
+
+```
+4TRAC.Core/
+├── Geo/            WGS84, ECEF↔LLA↔ENU, UTM, geodesic distance, DEM grid math
+├── Atm/            ISA/user atmosphere, ρ(h), density altitude, moist air
+├── Drag/           IDragModel → G1G7Model | BCvModel | CdTableModel; bundled tables
+├── Dynamics/       EOM assembly (gravity, drag, Coriolis, spin drift, wind)
+│   └── IIntegrator → RK4 fixed | RK45 Dormand-Prince (reference)
+├── Solver/         Forward trajectory engine, event detection (ground hit)
+├── Inverse/        Monte-Carlo sampler, backward engine, priors, weights (≡1)
+├── Stats/          Weighted HDR contours (marginal/2-D), quantiles, summaries
+├── Terrain/        DEM tile provider + cache + bilinear sampler
+├── Library/        Bullet/ammunition profile store (D8, JSON CRUD)
+├── Report/         Case-report model, GeoJSON/CSV writers
+└── Flat/           v1 production path: FlatModel, FlatSolver, FlatCloud, FlatAnalysis,
+                    FlatShooter, SpinDrift, Terrain, SrtmTerrain, CaseReport
+```
+
+**Namespaces:** FourTrac.Core.* (Core), FourTrac.App.ViewModels (App), FourTrac.Validation (CLI), _4TRAC.Tests (Tests).
+
+### 2.3 Global settings (Directory.Build.props)
+- LangVersion 12, Nullable enable, ImplicitUsings enable
+- InvariantGlobalization=true (Core stays invariant for deterministic numbers)
+- App overrides InvariantGlobalization=false (WPF text layout needs real cultures)
+
+---
+
+## 3. Build & Deployment
+
+### 3.1 Build
+```
+dotnet build 4TRAC.sln -c Release   # 0 errors expected
+dotnet test -c Release              # 136 tests pass
+```
+
+### 3.2 Publish (single-file, self-contained)
+```
+dotnet publish src/4TRAC.App/4TRAC.App.csproj -c Release -r win-x64 `
+  --self-contained -p:PublishSingleFile=true -o dist/4TRAC-app-win-x64
+```
+Output: dist/4TRAC-app-win-x64/4TRAC.App.exe (~163 MB).
+
+**Note:** Do not publish at solution level with -o — single-file is not supported for class libraries/test projects (NETSDK1099/1098). Publish only the App project.
+
+### 3.3 Deployment
+Copy dist/4TRAC-app-win-x64/ to target machine. No installer, no .NET prerequisite. The EXE runs standalone.
+
+---
+
+## 4. Core Physics Module (Flat — v1 Production Path)
+
+### 4.1 FlatTrajectoryModel (src/4TRAC.Core/Flat/FlatModel.cs)
+Flat-earth point-mass equations of motion in a local East-North-Up (ENU) frame anchored at the impact point.
+
+**State:** y = [x, y, z, vx, vy, vz] — x east, y north, z up (metres, seconds). z = 0 is the impact plane.
+
+**Equation:**
+```
+a = (0, 0, -g) + a_drag(v - w) + a_coriolis
+a_coriolis = -2 * Ω × v,  Ω_ENU = (0, Ω cos(lat), Ω sin(lat))
+```
+
+**Constants:**
+- Gravity = 9.80665 m/s² (declared in build brief)
+- Wgs84.Omega = 7.292115e-5 rad/s
+
+**Drag:** a_drag = -0.5 * ρ(h) * Beta(s, Mach) * |v_air| * v_air, where v_air = v - w, s = |v_air|, height h = AnchorHeight + z.
+
+**Coriolis components:**
+- ax += -2 * (w * cos(lat) * vz - w * sin(lat) * vy)
+- ay += -2 * (w * sin(lat) * vx)
+- az += -2 * (-w * cos(lat) * vx)
+
+**Constructor:** (IDragModel drag, Atmosphere atmosphere, double latDeg, double windEastMps, double windNorthMps, bool coriolis)
+
+### 4.2 FlatIntegrators (src/4TRAC.Core/Flat/FlatIntegrators.cs)
+- Forward(model, start, v0) → forward integration from muzzle to impact plane; detects ground hit via bisection-refined event.
+- Backward(model, start, vObs, originHeightM, dt, maxTimeS, surface) → backward integration from impact with negative step; finds first crossing of origin plane with ENU vertical velocity > 0 (ascending branch).
+
+### 4.3 FlatSolver.SolveAtMuzzleVelocity (FlatSolver.cs)
+Muzzle-velocity-consistent backward solve. The prior lives at the **muzzle**; the integration is parameterised by impact speed. A bracketed Illinois root-find (with periodic bisection step) finds the impact speed whose backward-implied muzzle velocity equals the drawn target.
+
+- Bracket: [0.2 * MV, MV] with expansion guard (×0.5 down, +0.1×MV up, 8 attempts each)
+- Illinois false position; every 4th iteration uses bisection c = 0.5*(a+b) as stagnation insurance
+- Convergence: |f| < MvToleranceMps (default 1e-3 m/s)
+- Max evaluations: MaxEvaluations (default 80 — raised from 16 after v1 fixed a 25 % silent-drop bug)
+- **Result:** every hypothesis is an exact prior draw; Monte-Carlo weights are identically 1 (no importance reweighting)
+
+### 4.4 Spin Drift (SpinDrift.cs)
+Litz form, applied as post-integration lateral offset (not an EOM force):
+- Miller stability factor: SG = 30*m / (t²*d³*l*(1+l²)) * (v/2800)^(1/3) (t = twist in calibers, l = length in calibers, d in inches, m in grains, v in fps)
+- Displacement: D(t) = 1.25*(SG + 1.2) * t^1.83 inches, positive right for RH twist
+- Lateral velocity: D'(t) = 1.25*(SG+1.2)*1.83 * t^0.83 inches/s
+- Fixed-point iteration on drift-free time of flight (using drift-carrying TOF caused a 4 cm error at 25 s)
+
+**Data:** FlatSpin(DiameterIn, MassGr, TwistIn, LengthIn, RightHandTwist) — imperial units at boundary.
+
+### 4.5 FlatScene / FlatObservation / FlatOrigin (FlatSolver.cs)
+- FlatScene(LatDeg, OriginHeightM, Atmosphere, Coriolis, IFlatSurface? Surface)
+- FlatObservation(ExteriorAngleDeg, AzimuthDeg) — impact-anchored frame
+- FlatOrigin(Converged, EastM, NorthM, HeightM, MuzzleVelocityMps, LaunchElevationDeg, LaunchAzimuthDeg, TimeOfFlightS, SpinDriftM, EndReason, Evaluations)
+
+### 4.6 FlatBackwardEnd enum
+ReachedOriginPlane, MinSpeed, MaxTime, OutsideTerrain
+
+---
+
+## 5. Inverse Problem Module
+
+### 5.1 Priors (src/4TRAC.Core/Inverse/ScalarPrior.cs)
+ScalarPrior(Kind, A, B):
+- Uniform(min, max): Sample = rng.NextDouble()*(B-A) + A
+- Normal(mean, sigma): Sample = A + B * rng.NextNormal() — **untruncated** deliberately (truncation would bias the cloud)
+
+### 5.2 Hypothesis (ShotHypothesis, InversePriors, HypothesisSampler)
+ShotHypothesis(MuzzleVelocityMps, ExteriorAngleDeg, AzimuthDeg, BcLbIn2, WindEastMps, WindNorthMps) — all SI except angles in degrees. Wind resolved once to ECEF at impact anchor before the solve (M3.1 convention).
+
+HypothesisSampler(seed) uses **xoshiro256\*\*** (SplitMix64 seeding) — deterministic per seed, bit-identical reruns. Azimuth wrapped to [0, 360).
+
+### 5.3 Monte-Carlo Cloud (FlatCloud.Run, FlatCloud.cs)
+- Draws hypotheses hypotheses sequentially from seed, solves in parallel via Parallel.For (results independent of core count)
+- Rejects: invalid draws (BC ≤ 0), no ascending origin, outside envelope, outside terrain coverage
+- Counts are tracked: NoAscendingOrigin, OutsideEnvelope, InvalidDraw, OutsideTerrain, LowMachCount
+- Invariant: Points.Count + Rejected == Requested
+- LowMachMps = 121.92 (400 fps) — below this, flagged LOW-MACH (validates solver, not bullet model)
+
+### 5.4 FlatAnalysis.Run (FlatAnalysis.cs)
+Entry point for a full scene analysis. Builds FlatScene, InversePriors, runs FlatCloud.Run, computes HDR via Hdr.Compute, converts mode/median to lat/lon via EnuFrame + Geodetic.
+
+**Minimum converged hypotheses:** 20 (MinimumPoints). Below this → Failed result, no region reported.
+
+**Notes:** every rejection reason, LOW-MACH flag, calibration record, declared model, limitations appended as explicit strings — never silent.
+
+---
+
+## 6. Statistics / HDR Module (src/4TRAC.Core/Stats/)
+
+### 6.1 Hdr.Compute (Hdr.cs)
+2-D Gaussian KDE on a regular grid with **eigen-axis mass calibration**:
+- Scott 2-D rule: h = pooled_sigma * n^(-1/6)
+- Kernel truncated at 3h, grid padded by 3h + 2 cells
+- Mass-ranked cell thresholds per requested fraction (default {0.5, 0.95}); ties at cutoff all kept
+- Marching squares with linear edge interpolation, inside-left directed segments (outer rings CCW, hole rings CW)
+- Cell-centre average decider for ambiguous saddles
+
+**Calibration:** target mass inverted through exact Gaussian-ellipse coverage integral over covariance eigen-axes (Abramowitz & Stegun 7.1.26 erf, bisection). A pooled-sigma k under-covers elongated clouds — this is the v1 fix for a real coverage bug (50 % band was covering 69.3 % before calibration).
+
+**Outputs per band:** Fraction, AreaM2, Rings (list of vertex loops), net area, KDE threshold, mode, median, bandwidth.
+
+### 6.2 MarchingSquares (MarchingSquares.cs)
+Contour extraction from scalar grid. SignedArea(ring) used to classify outer (CCW, area ≥ 0) vs hole (CW, area < 0) rings.
+
+### 6.3 Vec2 (Vec2.cs)
+2-D vector with arithmetic, length, dot product.
+
+---
+
+## 7. Geo Module (src/4TRAC.Core/Geo/)
+
+| File | Purpose |
+|------|---------|
+| Wgs84.cs | WGS84 ellipsoid constants, Omega |
+| EnuFrame.cs | Local ENU frame anchored at a lat/lon/height; AtOrigin(), ToEcef(), DirectionFromAzimuthElevation(), AzimuthDeg(), ElevationDeg() |
+| Geodetic.cs | ECEF↔LLA conversion |
+| Cartesian3.cs | 3-D vector type |
+| Utm.cs | UTM projection |
+| Geodesic.cs | Geodesic distance |
+| UnitConversions.cs | fps↔mps, mph↔mps, in↔m, lb/in²↔kg/m², deg↔rad |
+
+**Key convention:** EnuFrame.AtOrigin(lat, lon, height) creates the anchor; anchor.ToEcef(enu) maps local offsets to ECEF; Geodetic.EcefToLla back to lat/lon.
+
+---
+
+## 8. Atmosphere Module (src/4TRAC.Core/Atm/Atmosphere.cs)
+Atmosphere.FromMeasurements(TemperatureC, PressurePa, RelativeHumidity, AnchorHeightM) — moist-air density from temperature, station pressure, RH. Provides Density(height), SpeedOfSound(height), AnchorHeightM.
+
+---
+
+## 9. Drag Module (src/4TRAC.Core/Drag/)
+
+| File | Purpose |
+|------|---------|
+| DragModels.cs | IDragModel.Beta(speed, mach), IBcProvider, ConstantBcProvider, TabulatedBcProvider (BC(v)), BcDragModel (G-model: beta = π/4 * CD_ref(Mach) / BC_SI), CdTableDragModel (user CD(Mach)) |
+| DragTable.cs | Table storage + interpolation (linear for reference standards, PCHIP for user sparse tables) |
+| DragTableCatalog.cs | Bundled G1/G5/G6/G7/GI tables from embedded JSON resources; ByStandard(name) |
+
+**Unit convention:** BC_SI = BC[lb/in²] * 703.0696... (exact). Beta = (π/4) * CD_ref(Mach) / BC_SI [m²/kg].
+
+**Interpolation:** bundled reference tables use **piecewise-linear** between nodes (matches JBM/Exbal ecosystem). User CD tables use PCHIP (monotone cubic, overshoot-free). Out-of-table Mach clamps to endpoint values.
+
+### 9.1 Bundled tables (src/4TRAC.Core/Data/)
+g1.json, g5.json, g6.json, g7.json, gi.json — embedded resources with provenance fields (source: Commission d'Expérience de Gâvre 1881 G1 / US Army BRL G7; US Government works, public domain; transcription from gehtsoft-usa/BallisticCalculator1 LGPL-2.1).
+
+---
+
+## 10. Terrain Module (src/4TRAC.Core/Flat/Terrain.cs, SrtmTerrain.cs)
+
+- DemSurface wraps an ESRI ASCII grid (WGS84 degrees) with bilinear sampling; heights use exact tangent-plane vertical (earth curvature included — ~7.8 m drop at 10 km)
+- SrtmCache downloads missing SRTM 1° tiles from AWS elevation-tiles-prod/skadi (no API key) into %LOCALAPPDATA%\4TRAC\dem (atomic write); runs offline from cache thereafter
+- Build(lat, lon, envelopeM + 500, cache) covers the declared envelope plus margin
+- Tracks outside coverage are rejected (OutsideTerrain), never extrapolated
+- If > 5 % of hypotheses leave DEM coverage, no region is reported
+
+---
+
+## 11. Library Module (src/4TRAC.Core/Library/BulletProfile.cs)
+**D8 — Bullet profile library.** BulletProfile record with schema 4trac-bullet-profile/1.0:
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| schema | string | Yes | "4trac-bullet-profile/1.0" |
+| name | string | Yes | |
+| caliberIn | number | Yes | inches |
+| massGr | number | Yes | grains |
+| lengthIn | number | Yes | inches |
+| diameterIn | number | Yes | inches |
+| twistIn | number | Yes | inches per turn |
+| rightHandTwist | boolean | Yes | |
+| bcLbIn2 | number | Yes | lb/in² |
+| bcSigmaFraction | number | No | default 0.03 |
+| referenceStandard | string | No | "G1" or "G7", default "G1" |
+| notes | string | No | |
+
+**Rules:** unknown fields rejected (not silently ignored). Validate() checks ranges and drag standard. FromJson deserializes with strict field checking.
+
+BulletProfileLibrary.LoadDirectory(directory) scans *.json; FindByName(name) case-insensitive exact match. Profiles read-only at runtime.
+
+**Profiles shipped (data/profiles/):**
+- .308_168gr_ELD-M.json — G7 BC 0.462, 3% sigma
+- .223_55gr_FMJ.json — G1 BC 0.150, 5% sigma
+- .30-06_150gr_Core-Lokt.json — G1 BC 0.290, 5% sigma
+- profile_schema.md — schema documentation
+
+---
+
+## 12. Report Module (src/4TRAC.Core/Flat/CaseReport.cs)
+CaseReport.Html(request, result, generatedUtc) — self-contained HTML audit trail:
+- Model version: "4TRAC flat-earth 1.0 (M4)"
+- Seed, generated UTC
+- Result: mode lat/lon, range, bearing, band areas, MV percentiles (P5/P50/P95 in fps), range percentiles, KDE cell/bandwidth
+- Inputs: every field with units (imperial at boundary)
+- Declared model & envelope: flat-earth, 10 km, gravity, drag, flat origin prior, MV as prior with weights ≡ 1
+- Exclusions & deviations: every note line
+- Calibration record: truth-drawn 150 trials × 500 hypotheses → 50 % band 49.3 %, 95 % band 98.0 %
+- Published precision requirements
+- Limitations list
+
+---
+
+## 13. Validation Module (4TRAC.Validation)
+Console CLI harness. Key design points from PLAN §8.3:
+- Design matrix: cell = (scene combo) × (protocol: σ(θ) × MV half-width × σ(BC) × σ(wind))
+- Truth MV solved per combo (secant on monotone range(MV))
+- Per-trial seeds derived deterministically from (run seed, cell, trial) — single trial reproducible from report alone
+- Outputs: cells.csv, trials.csv, report.md with PASS/FAIL/SKIP verdicts
+- Invariant: completed + excluded = total — never drop a cell silently
+- Checkpoint/resume: append-only per-cell CSV, tolerate torn final line, reject checkpoint from different matrix/seed
+- Artifacts written once at end; crashed run leaves previous artifacts untouched
+- Tornado mode: sweep one input's uncertainty, publish required scene-measurement precision
+- **V2 gates:** 95 % coverage ∈ [92, 98], 50 % coverage ∈ [45, 55], median origin error ≤ max(5 m, 1.5 % of range) for θ ≥ 15°, R ≤ 1000 m
+
+Run modes (from PLAN):
+- dotnet run --project src/4TRAC.Validation -- --mode flat (flat-model reduced matrix)
+
+---
+
+## 14. WPF App Module (4TRAC.App)
+
+### 14.1 UI structure (MainWindow.xaml)
+Two-column layout:
+- Left (400 px): input forms — Scene, Bullet (with profile recall), Muzzle velocity, Atmosphere, Wind, Run; action buttons (Solve, Export GeoJSON, Export CSV, Export PNG, Export case report HTML)
+- Right (*): Mapsui map control (top, OSM tile layer) + Results & deviations text box (bottom, 300 px)
+
+### 14.2 MainViewModel (MainViewModel.cs + MainViewModel.Profiles.cs)
+All inputs are string properties bound to TextBoxes; parsed with CultureInfo.CurrentCulture on Solve. Commands: SolveCommand, ExportPngCommand, ExportGeoJsonCommand, ExportCsvCommand, ExportReportCommand, BrowseDemCommand, RecallProfileCommand.
+
+**Solve flow:**
+1. BuildRequest() → validates inputs, constructs FlatAnalysisRequest
+2. Task.Run(() => FlatAnalysis.Run(request)) — solver on background thread
+3. FormatResults() — text summary; map error is non-fatal (results still valid)
+4. ShowOnMap() — adds 50 %/95 % polygon layers, impact (red) and mode (blue) markers, centers map
+
+**Profile recall:** SelectedProfile ComboBox bound to ProfileNames; RecallProfileCommand applies profile values to bullet fields and appends a note to ResultsText.
+
+**Export destinations:** all exports go to %USERPROFILE%\Desktop with timestamped filenames.
+
+### 14.3 Map rendering
+Mapsui MapControl with OpenStreetMap.CreateTileLayer(). Result layers are MemoryLayer with VectorStyle (fill/outline). GeoJSON export uses NetTopologySuite GeometryFactory. PNG export via Mapsui.Rendering.Skia.MapRenderer.RenderToBitmapStream.
+
+---
+
+## 15. Data Flow (End-to-End Solve)
+
+```
+User inputs (imperial at UI boundary)
+    → BuildRequest() converts to SI
+    → FlatAnalysisRequest
+    → FlatAnalysis.Run()
+        → Atmosphere.FromMeasurements()
+        → FlatScene (lat, origin height, atmosphere, coriolis, surface?)
+        → InversePriors (MV uniform; angle/azimuth/BC/wind normal centred on observations)
+        → FlatCloud.Run(priors, reference, scene, spin, hypotheses, seed, options)
+            → HypothesisSampler draws (sequential from seed)
+            → Parallel.For: FlatSolver.SolveAtMuzzleVelocity per hypothesis
+                → Illinois root find on impact speed → implied MV
+                → FlatIntegrators.Backward (negative step) from impact to origin plane
+                → Spin drift correction (fixed-point on drift-free TOF)
+            → Reject non-converged / outside envelope / outside terrain
+        → Hdr.Compute(points, cellSize, {0.5, 0.95}) with eigen-axis calibration
+        → Convert mode/median ENU → lat/lon via EnuFrame + Geodetic
+    → FlatAnalysisResult (Error, Cloud, Bands, Mode, Median, percentiles, notes)
+    → UI: text + map overlays + export options
+```
+
+---
+
+## 16. Configuration & Settings
+
+No appsettings.json. Configuration is entirely via:
+- UI input fields (session-only)
+- data/profiles/ bullet profiles (read at startup from directory adjacent to app)
+- SRTM cache at %LOCALAPPDATA%\4TRAC\dem
+- Drag tables embedded as resources
+
+**Default solve values** (loaded when app starts): impact 40.0°/-75.0°, elevation 100 m, exterior angle 30°, azimuth 270°, BC 0.462 G7, MV 2550–2700 fps, 59 °F / 29.92 inHg / 50 % RH, calm wind, 500 hypotheses, seed 20261029, Coriolis on.
+
+---
+
+## 17. Limitations & Known Issues (v1 Scope)
+
+Stated in LIMITATIONS.md and in every case report:
+
+1. Flat-earth point-mass; 10 km envelope
+2. Constant gravity 9.80665 m/s²
+3. Scalar G1/G7 drag only (BC(v), CD(Mach) defined but not wired to production path)
+4. Constant wind; no layered profile
+5. Spin drift post-integration (not EOM force)
+6. Ascending origins only (descending launches not reported)
+7. Single shot only
+8. LOW-MACH below 400 fps (121.92 m/s)
+9. Exterior angle preferred; interior-only accepted with warning
+10. Magnetic declination manual only
+11. DEM vertical error → Δz/tan(θ) range error (reported explicitly)
+12. Flat origin prior assumption
+13. KDE bandwidth calibrated; non-convex clouds may need inspection
+14. Coverage is whole-matrix statement (tight-prior subsets over-cover)
+15. HTML report only (no PDF)
+16. No runtime profile CRUD
+17. SRTM or local DEM only (user-enabled)
+18. No V4 field validation
+
+**Open tracking:** 95 % band sits at upper edge of gate (98.0 % vs 92–98). Spin drift not yet in origin-prior truth (CoverageStudy throws if spin enabled).
+
+---
+
+## 18. Extension Points for Future Development
+
+| Area | Location | What to modify |
+|------|----------|----------------|
+| PDF export | CaseReport.cs / MainViewModel.ExportReport | Add PDF writer (e.g. QuestPDF or HtmlRenderer) |
+| Bullet profile CRUD | BulletProfileLibrary + UI | Add save/edit/delete; currently read-only directory scan |
+| Layered wind | FlatTrajectoryModel / WindProfile.cs | Replace constant wind with altitude-profile lookup |
+| BC(v) / CD(Mach) | FlatCloud.Run drag construction | Wire TabulatedBcProvider / CdTableDragModel into flat solver |
+| Descending origins | FlatIntegrators.Backward crossing rule | Allow vertical velocity < 0 crossings |
+| Magnus effect | FlatTrajectoryModel.Derivatives | Add Magnus acceleration term behind flag |
+| Auto-IGRF | UI azimuth input | Add IGRF model lookup by date/location |
+| ECEF core (alternate physics) | src/4TRAC.Core/Dynamics/ / Inverse/ | Existing ECEF implementation (M1–M3) preserved but not production-wired |
+
+---
+
+## 19. How to Modify Safely
+
+1. **Never change physics constants silently.** Gravity, drag convention, and Coriolis sign are pinned by golden tests (4TRAC.Tests/Golden/, DragTests.cs, DynamicsTests.cs, IntegratorTests.cs, GeoTests.cs, AtmosphereTests.cs). Any change must update goldens with written justification (build brief §7 "Continuous").
+2. **Tests are the contract.** A milestone is done when tests execute the production code path. File-comparison tests without running the program are false passes.
+3. **Determinism.** Any new randomness must use Xoshiro256 with an exposed seed, never System.Random.
+4. **Itemize, never absorb.** New rejection/failure paths must append to notes, never silently clamp.
+5. **SI internally.** Imperial only at UI/profile boundary; UnitConversions for all boundary crossings.
+6. **Label, never smooth over.** Out-of-envelope, LOW-MACH, SKIP results need explicit visible labels.
+
+---
+
+## 20. File Inventory (v1)
+
+**Source:**
+- src/4TRAC.Core/ — Geo, Atm, Drag, Dynamics, Solver, Inverse, Stats, Terrain, Library, Report, Flat (~40 files)
+- src/4TRAC.App/ — MainWindow.xaml/.cs, App.xaml.cs, ViewModels/MainViewModel.cs + .Profiles.cs, ViewModelBase.cs, RelayCommand.cs
+- src/4TRAC.Validation/ — DesignMatrix, SceneFactory, TrialRunner, Aggregation, Tornado, ReportWriters, Checkpoint, Program
+- tests/4TRAC.Tests/ — 14 test files (FlatPhysicsTests, ForwardSolverTests, Golden/*, StatsTests, InverseTests, etc.)
+
+**Data:**
+- data/profiles/ — 3 bullet JSONs + profile_schema.md
+- src/4TRAC.Core/Data/ — g1, g5, g6, g7, gi.json (embedded drag tables)
+- data/golden/ — V1 golden reference sets
+
+**Docs:**
+- PLAN.md — project plan + v1 release record
+- USER_MANUAL.md — user manual (new in v1)
+- LIMITATIONS.md — declared limitations (new in v1)
+- docs/BUILD-PROMPT.md — master build prompt
+- 23-10-2026 Build Prompt RGBS.md — (empty)
+
+**Output:**
+- dist/4TRAC-app-win-x64/4TRAC.App.exe — published single-file EXE
+- validation-out/ — V2 validation artifacts (flat-v2-reduced, tornado, anchors-smoke, etc.)
+
+---
+
+**End of specification.** This document reflects the actual code as built and tested at v1.0 (136/136 tests passing, single-file EXE published). Modify this spec alongside any code changes to keep it authoritative.

@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>FourTrac.App</RootNamespace>
+    <AssemblyName>4TRAC.App</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Directory.Build.props sets invariant globalization for the numerical Core;
+         WPF text layout needs real cultures, so the App opts out. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <ApplicationIcon>..\..\4trac2.ICO</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="..\..\4trac2.ICO" Link="Assets\4trac2.ico" />
+    <Resource Include="..\..\4tracSplash.jpg" Link="Assets\4tracSplash.jpg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\4TRAC.Core\4TRAC.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mapsui" Version="5.1.0" />
+    <PackageReference Include="Mapsui.Tiling" Version="5.1.0" />
+    <PackageReference Include="Mapsui.Wpf" Version="5.1.0" />
+  </ItemGroup>
+
+</Project>

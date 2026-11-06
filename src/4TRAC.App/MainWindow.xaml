@@ -1,0 +1,309 @@
+<Window x:Class="FourTrac.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:mapsui="clr-namespace:Mapsui.UI.Wpf;assembly=Mapsui.UI.Wpf"
+        xmlns:system="clr-namespace:System;assembly=System.Runtime"
+        mc:Ignorable="d"
+        Title="4TRAC 2027 - Retrograde Ballistic Solver (flat-earth, 10 km envelope)"
+        Width="1320" Height="820" MinWidth="1000" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/Assets/4trac2.ico">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="B2V"/>
+
+        <Style TargetType="Label">
+            <Setter Property="Padding" Value="0,6,0,1"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#444444"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="3,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Validation.ErrorTemplate">
+                <Setter.Value><ControlTemplate><AdornedElementPlaceholder/></ControlTemplate></Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Validation.HasError" Value="True">
+                    <Setter Property="BorderBrush" Value="#C62828"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                    <Setter Property="Background" Value="#FDECEA"/>
+                    <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="Expander">
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="IsExpanded" Value="True"/>
+        </Style>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style x:Key="Primary" TargetType="Button">
+            <Setter Property="Background" Value="#2F5D8A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="BorderBrush" Value="#244A6F"/>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#9AAFC4"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400" MinWidth="340" MaxWidth="560"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*" MinWidth="400"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Inputs: scrolling form above, actions pinned below so Solve is always visible -->
+        <DockPanel Grid.Column="0" Margin="8">
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+                <Border Background="#FDECEA" BorderBrush="#C62828" BorderThickness="1" CornerRadius="3" Padding="6,4"
+                        Margin="0,0,0,6" MaxHeight="130"
+                        Visibility="{Binding HasErrors, Converter={StaticResource B2V}}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="#8E1B1B" FontSize="12"
+                                   Text="Fix these inputs to enable Solve:"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding ErrorLines}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="11" Foreground="#8E1B1B"/></DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+                <Button Style="{StaticResource Primary}" Content="Solve - find origin regions"
+                        Command="{Binding SolveCommand}" Height="40"/>
+                <UniformGrid Columns="2" Margin="0,6,0,0">
+                    <Button Content="Case report (HTML)" Command="{Binding ExportReportCommand}" Height="28" Margin="0,0,3,3"/>
+                    <Button Content="GeoJSON (regions)" Command="{Binding ExportGeoJsonCommand}" Height="28" Margin="3,0,0,3"/>
+                    <Button Content="CSV (origin cloud)" Command="{Binding ExportCsvCommand}" Height="28" Margin="0,0,3,0"/>
+                    <Button Content="PNG (map)" Command="{Binding ExportPngCommand}" Height="28" Margin="3,0,0,0"/>
+                </UniformGrid>
+                <TextBlock Text="Exports are saved to your Desktop." FontSize="11" Foreground="#777777" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,6,0">
+
+                    <Expander>
+                        <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="Scene (impact point)"/></Expander.Header>
+                        <StackPanel Margin="4,0,0,4">
+                            <Label Content="Impact latitude / longitude (deg)"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding ImpactLat}" Margin="0,0,2,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding ImpactLon}" Margin="2,0,0,0"/>
+                            </Grid>
+                            <Label Content="Angle of incidence, degrees below horizontal  |  +/- sigma (deg)"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding IncidenceAngle}" Margin="0,0,2,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding IncidenceAngleSigma}" Margin="2,0,0,0"
+                                         ToolTip="Angle uncertainty. A wide sigma on a shallow angle spreads the region along the line of fire."/>
+                            </Grid>
+                            <Label Content="Travel azimuth at impact, deg true  |  +/- sigma (deg)"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding Azimuth}" Margin="0,0,2,0"
+                                         ToolTip="True north, not magnetic. Apply magnetic declination yourself."/>
+                                <TextBox Grid.Column="1" Text="{Binding AzimuthSigma}" Margin="2,0,0,0"/>
+                            </Grid>
+                            <Label Content="Impact elevation (m; anchors the atmosphere)"/>
+                            <TextBox Text="{Binding ImpactElevation}"/>
+                            <Label Content="Origin plane height vs impact (m; negative = shooter below the roof)"/>
+                            <TextBox Text="{Binding OriginHeight}"
+                                     ToolTip="Ignored when a DEM or SRTM terrain is used."/>
+
+                            <Label Content="Terrain"/>
+                            <CheckBox Content="Use SRTM terrain (downloads and caches 1-degree tiles)" IsChecked="{Binding UseSrtm}"/>
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding DemPath}" Margin="0,0,2,0"
+                                         ToolTip="Optional ESRI ASCII grid (WGS84 degrees). Blank = flat origin plane."/>
+                                <Button Grid.Column="1" Content="Browse DEM..." Command="{Binding BrowseDemCommand}" Padding="8,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander>
+                        <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="Bullet"/></Expander.Header>
+                        <StackPanel Margin="4,0,0,4">
+                            <Label Content="Saved profile"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <ComboBox Grid.Column="0" ItemsSource="{Binding ProfileNames}"
+                                          SelectedItem="{Binding SelectedProfile}" Margin="0,0,2,0"/>
+                                <Button Grid.Column="1" Content="Recall" Command="{Binding RecallProfileCommand}" Padding="10,0"/>
+                            </Grid>
+                            <Label Content="Ballistic coefficient (lb/in^2)  |  sigma (%)"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding BallisticCoefficient}" Margin="0,0,2,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding BcSigmaPercent}" Margin="2,0,0,0"/>
+                            </Grid>
+                            <Label Content="Reference drag function"/>
+                            <ComboBox SelectedItem="{Binding ReferenceStandard}">
+                                <system:String>G1</system:String>
+                                <system:String>G7</system:String>
+                            </ComboBox>
+                            <Label Content="Diameter (in)  |  mass (gr)"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding DiameterIn}" Margin="0,0,2,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding MassGr}" Margin="2,0,0,0"/>
+                            </Grid>
+                            <Label Content="Barrel twist (in per turn)  |  bullet length (in)"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding TwistIn}" Margin="0,0,2,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding LengthIn}" Margin="2,0,0,0"/>
+                            </Grid>
+                            <WrapPanel Margin="0,6,0,0">
+                                <CheckBox Content="Spin drift on (Litz form)" IsChecked="{Binding SpinDriftOn}" Margin="0,0,16,0"
+                                          ToolTip="The coverage calibration was run with spin drift off. With it on, the result is flagged as outside the calibrated conditions."/>
+                                <CheckBox Content="Right-hand twist" IsChecked="{Binding RightHandTwist}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander>
+                        <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="Muzzle velocity range (fps)"/></Expander.Header>
+                        <Grid Margin="4,4,0,4">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding MvMinFps}" Margin="0,0,2,0" ToolTip="Minimum (uniform prior)"/>
+                            <TextBox Grid.Column="1" Text="{Binding MvMaxFps}" Margin="2,0,0,0" ToolTip="Maximum (uniform prior)"/>
+                        </Grid>
+                    </Expander>
+
+                    <Expander>
+                        <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="Weather"/></Expander.Header>
+                        <StackPanel Margin="4,0,0,4">
+                            <Label Content="Temperature (deg F)  |  station pressure (inHg)  |  humidity (%)"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding TemperatureF}" Margin="0,0,2,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding PressureInHg}" Margin="2,0,2,0"/>
+                                <TextBox Grid.Column="2" Text="{Binding RelativeHumidity}" Margin="2,0,0,0"/>
+                            </Grid>
+                            <Label Content="Wind (constant): speed (mph)  |  FROM direction (deg true)  |  sigma per axis (m/s)"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding WindSpeedMph}" Margin="0,0,2,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding WindFromDeg}" Margin="2,0,2,0"/>
+                                <TextBox Grid.Column="2" Text="{Binding WindSigma}" Margin="2,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander IsExpanded="False">
+                        <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="Run settings"/></Expander.Header>
+                        <StackPanel Margin="4,0,0,4">
+                            <Label Content="Monte-Carlo hypotheses (500 minimum)  |  RNG seed"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding Hypotheses}" Margin="0,0,2,0"
+                                         ToolTip="500 is the calibrated minimum. More hypotheses give smoother regions but take longer."/>
+                                <TextBox Grid.Column="1" Text="{Binding Seed}" Margin="2,0,0,0"
+                                         ToolTip="The same seed and inputs reproduce the same result exactly."/>
+                            </Grid>
+                            <CheckBox Content="Coriolis on" IsChecked="{Binding CoriolisOn}" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#DDDDDD"/>
+
+        <!-- Result side: warning banner, status, key numbers, map, details -->
+        <Grid Grid.Column="2" Margin="0,8,8,8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*" MinHeight="150"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="230" MinHeight="80"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="#FFF4CE" BorderBrush="#E0A800" BorderThickness="1" CornerRadius="3"
+                    Padding="10,8" Margin="0,0,0,6"
+                    Visibility="{Binding HasWarning, Converter={StaticResource B2V}}">
+                <StackPanel>
+                    <TextBlock Text="Read before relying on this result" FontWeight="Bold" Foreground="#6B4E00"/>
+                    <TextBlock Text="{Binding WarningText}" TextWrapping="Wrap" Foreground="#4A3700" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Grid.Row="1" Text="{Binding HeadlineText}" TextWrapping="Wrap" FontSize="13"
+                       Foreground="#333333" Margin="2,0,0,6"/>
+
+            <!-- Progress and cancel, only while solving -->
+            <DockPanel Grid.Row="2" Margin="0,0,0,6"
+                       Visibility="{Binding IsBusy, Converter={StaticResource B2V}}">
+                <Button DockPanel.Dock="Right" Content="Cancel" Command="{Binding CancelCommand}"
+                        Padding="14,2" Margin="8,0,0,0"/>
+                <ProgressBar Height="14" Minimum="0" Maximum="100"
+                             Value="{Binding ProgressValue, Mode=OneWay}"
+                             IsIndeterminate="{Binding ProgressIndeterminate}"/>
+            </DockPanel>
+
+            <!-- Key numbers -->
+            <ItemsControl Grid.Row="3" ItemsSource="{Binding Tiles}" Margin="0,0,0,6">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Padding="10,5"
+                                Margin="0,0,6,6" Background="#F7F9FB" MinWidth="120">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#666666"/>
+                                <TextBlock Text="{Binding Value}" FontSize="16" FontWeight="SemiBold" Foreground="#1F3B57"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <mapsui:MapControl x:Name="MapControl" Grid.Row="4"/>
+
+            <GridSplitter Grid.Row="5" Height="5" HorizontalAlignment="Stretch" Background="#DDDDDD" ResizeBehavior="PreviousAndNext"/>
+
+            <TabControl Grid.Row="6">
+                <TabItem Header="Assumptions and deviations">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding NoteLines}" Margin="6">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+                                        <Run Text="&#8226; "/><Run Text="{Binding Mode=OneWay}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Full text">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <TextBox Text="{Binding ResultsText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"
+                                 FontFamily="Consolas" BorderThickness="0" Margin="5"/>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </Grid>
+</Window>

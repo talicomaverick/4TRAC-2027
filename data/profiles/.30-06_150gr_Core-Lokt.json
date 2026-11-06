@@ -1,0 +1,14 @@
+{
+  "schema": "4trac-bullet-profile/1.0",
+  "name": ".30-06 Springfield 150 gr Core-Lokt",
+  "caliberIn": 0.308,
+  "massGr": 150,
+  "lengthIn": 1.090,
+  "diameterIn": 0.308,
+  "twistIn": 10.0,
+  "rightHandTwist": true,
+  "bcLbIn2": 0.290,
+  "bcSigmaFraction": 0.05,
+  "referenceStandard": "G1",
+  "notes": "G1 BC estimate for 150 gr soft-point hunting bullet."
+}

@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+dist/
+publish-new*/
+
+# Visual Studio / IDE
+.vs/
+*.user
+*.suo
+
+# Logs and scratch files made by the build scripts
+*.log
+New Text Document.txt
+return.txt
+permissions.txt
+
+# Large research export (12 MB) and generated validation output
+retrograde-ballistic-solver-planning-for-forensic-ballistics.json
+validation-out/
+
+# Local backups of files before edits
+tools/backup-*/
