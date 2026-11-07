@@ -22,6 +22,9 @@ public enum FlatCloudStatus
 
     /// <summary>The track left the DEM coverage: rejected, and counted separately because it truncates the posterior.</summary>
     OutsideTerrain,
+
+    /// <summary>The drawn angle of incidence was at or below 0 deg (bullet not descending at impact): rejected, counted separately.</summary>
+    NonPositiveAngle,
 }
 
 /// <summary>Result of a flat Monte-Carlo cloud run. Counts always satisfy Points.Count + rejected = Requested.</summary>
@@ -61,7 +64,8 @@ public static class FlatCloud
         ulong seed,
         FlatSolveOptions? options = null,
         CancellationToken cancellationToken = default,
-        IProgress<int>? progress = null)
+        IProgress<int>? progress = null,
+        double symmetricCrosswindMps = 0.0)
     {
         ArgumentNullException.ThrowIfNull(priors);
         ArgumentNullException.ThrowIfNull(reference);
@@ -71,12 +75,29 @@ public static class FlatCloud
         var o = options ?? new FlatSolveOptions();
         var sampler = new HypothesisSampler(seed);
         var draws = new ShotHypothesis[hypotheses];
+        // Unknown wind side: with a symmetric crosswind each hypothesis gets that crosswind (m/s)
+        // pushing the bullet to its RIGHT or its LEFT, chosen at random with equal odds, on top of the
+        // wind prior. The coin uses its own generator, so a run without it is unchanged.
+        var sideRng = symmetricCrosswindMps > 0.0 ? new Xoshiro256(seed ^ 0x9E3779B97F4A7C15UL) : null;
         for (int i = 0; i < hypotheses; i++)
+        {
             draws[i] = sampler.Next(priors);
+            if (sideRng is not null)
+            {
+                double side = sideRng.NextDouble() < 0.5 ? -1.0 : 1.0;
+                var right = SpinDrift.RightOf(draws[i].AzimuthDeg);
+                draws[i] = draws[i] with
+                {
+                    WindEastMps = draws[i].WindEastMps + side * symmetricCrosswindMps * right.X,
+                    WindNorthMps = draws[i].WindNorthMps + side * symmetricCrosswindMps * right.Y,
+                };
+            }
+        }
 
-        // The exterior-angle prior is an untruncated Normal, so at shallow angles a
-        // share of draws is <= 0 deg (the bullet RISING at impact). They are kept
-        // (truncating would bias the cloud) but counted so the report can say so.
+        // The angle-of-incidence prior is an untruncated Normal, so at shallow angles a
+        // share of draws is <= 0 deg (the bullet RISING at impact). The model cannot trace
+        // such a draw back to an origin, so each one is REJECTED up front and counted, and
+        // the analysis treats the count as a truncation of the posterior (never silently dropped).
         int nonPositiveAngle = 0;
         for (int i = 0; i < hypotheses; i++)
             if (draws[i].ExteriorAngleDeg <= 0.0) nonPositiveAngle++;
@@ -95,6 +116,11 @@ public static class FlatCloud
             try
             {
             var h = draws[i];
+            if (h.ExteriorAngleDeg <= 0.0)
+            {
+                status[i] = FlatCloudStatus.NonPositiveAngle;
+                return;
+            }
             if (!(h.BcLbIn2 > 0))
             {
                 status[i] = FlatCloudStatus.InvalidDraw;

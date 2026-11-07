@@ -145,7 +145,7 @@ public class SrtmTests
             Coriolis: true, Spin: null, Hypotheses: 60, Seed: 11UL,
             UseSrtm: true, DemCacheDirectory: dir);
 
-        var r = FlatAnalysis.Run(req);
+        var r = FlatAnalysis.Run(req, allowUncalibratedHypothesisCount: true);
 
         Assert.Null(r.Error);
         Assert.Contains(r.Notes, n => n.StartsWith("Origin surface: SRTM"));

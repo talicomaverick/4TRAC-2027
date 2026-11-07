@@ -24,6 +24,9 @@ public enum FlatBackwardEnd
 
     /// <summary>The track left the DEM coverage (no data): rejected, not extrapolated.</summary>
     OutsideTerrain,
+
+    /// <summary>The integration produced a non-finite state (numerical blow-up): rejected.</summary>
+    NonFinite,
 }
 
 /// <summary>Result of a backward flat-earth integration.</summary>
@@ -106,8 +109,9 @@ public static class FlatIntegrators
     /// equations of motion is a function of state only, so a negative step
     /// re-traces the forward states exactly. The origin is the first crossing of
     /// <paramref name="originHeightM"/> at which the forward vertical velocity
-    /// is POSITIVE (a lofted launch). Descending crossings are mirror images and
-    /// are not origins; a descending launch never produces an ascending crossing.
+    /// is POSITIVE (a lofted launch). With <c>descendingLaunch</c> the origin is instead the
+    /// first crossing at which the forward vertical velocity is NEGATIVE (a shooter on a surface
+    /// above the impact firing down); ascending crossings are then skipped.
     /// </summary>
     public static FlatBackwardResult Backward(
         FlatTrajectoryModel model,
@@ -117,7 +121,8 @@ public static class FlatIntegrators
         double dt = 0.001,
         double maxTimeS = 180.0,
         double minSpeedMps = 1.0,
-        IFlatSurface? surface = null)
+        IFlatSurface? surface = null,
+        bool descendingLaunch = false)
     {
         ArgumentNullException.ThrowIfNull(model);
         if (dt <= 0) throw new ArgumentOutOfRangeException(nameof(dt));
@@ -150,7 +155,11 @@ public static class FlatIntegrators
 
             double hNow = Clearance(terrain, yout[0], yout[1], yout[2]);
             if (double.IsNaN(hNow))
-                return Finish(FlatBackwardEnd.OutsideTerrain, elapsed, y);
+            {
+                // NaN clearance is either a state that blew up, or a surface with no data here.
+                bool finiteState = double.IsFinite(yout[0]) && double.IsFinite(yout[1]) && double.IsFinite(yout[2]);
+                return Finish(finiteState ? FlatBackwardEnd.OutsideTerrain : FlatBackwardEnd.NonFinite, elapsed, y);
+            }
             if (hPrev * hNow < 0.0 || hNow == 0.0)
             {
                 double lo = 0.0, hi = hStep;
@@ -165,12 +174,23 @@ public static class FlatIntegrators
                 Rk4.Step(model, -elapsed, yprev, lo, k1, k2, k3, k4, ytmp, yout);
 
                 // Ascending relative to the ground: vertical speed minus the surface's uphill rise along the track.
-                if (AscendingRelativeToGround(terrain, yout) )
+                // Climbing branch (default): the origin is a crossing that is ascending in forward time.
+                // Descending branch: the origin is a crossing that is descending in forward time, i.e. a
+                // shooter on a surface above the impact (roof, hillside) firing down.
+                if (AscendingRelativeToGround(terrain, yout) != descendingLaunch)
                 {
                     Array.Copy(yout, y, n);
                     elapsed += Math.Abs(lo);
                     return Finish(FlatBackwardEnd.ReachedOriginPlane, elapsed, y);
                 }
+
+                // Descending crossing: not an origin. The state is the bisected point (yout at
+                // step `lo`), so the clock advances by `lo`, not by the whole step (it used to
+                // advance by the full step: a time-of-flight overcount of up to dt).
+                Array.Copy(yout, y, n);
+                elapsed += Math.Abs(lo);
+                hPrev = hNow;
+                continue;
             }
 
             Array.Copy(yout, y, n);

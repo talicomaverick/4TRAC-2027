@@ -14,7 +14,19 @@ public sealed record FlatScene(
     double OriginHeightM,
     Atmosphere Atmosphere,
     bool Coriolis,
-    IFlatSurface? Surface = null);
+    IFlatSurface? Surface = null,
+    FlatWindShear? Shear = null);
+
+/// <summary>
+/// Two-layer wind. The drawn wind applies at and below the impact plane (z &lt;= 0) and the
+/// wind <b>aloft</b> (drawn wind plus this change) applies at height <see cref="HeightM"/> above the impact
+/// plane and higher, blended linearly in between. The uncertainty of the two layers is shared
+/// (one draw plus a fixed change), which is a declared simplification.
+/// </summary>
+public sealed record FlatWindShear(double DeltaEastMps, double DeltaNorthMps, double HeightM)
+{
+    public bool IsActive => HeightM > 0 && (DeltaEastMps != 0.0 || DeltaNorthMps != 0.0);
+}
 
 /// <summary>Scene observables at the impact point, angles in degrees.</summary>
 public sealed record FlatObservation(double ExteriorAngleDeg, double AzimuthDeg);
@@ -44,6 +56,13 @@ public sealed class FlatSolveOptions
     /// steep-impact cloud at 16).
     /// </summary>
     public int MaxEvaluations { get; init; } = 80;
+
+    /// <summary>
+    /// False (default): the origin is a launch that is climbing at the origin plane (ground-level
+    /// shooter, lofted shot). True: the origin is a launch that is descending at the plane (a shooter
+    /// on a roof or hillside above the impact firing down). Candidate branches are solved separately.
+    /// </summary>
+    public bool DescendingLaunch { get; init; }
 }
 
 /// <summary>
@@ -97,19 +116,35 @@ public static class FlatSolver
             throw new ArgumentOutOfRangeException(nameof(muzzleVelocityMps), "Muzzle velocity must be positive.");
 
         var o = options ?? new FlatSolveOptions();
-        var model = new FlatTrajectoryModel(drag, scene.Atmosphere, scene.LatDeg, windEastMps, windNorthMps, scene.Coriolis);
+        var model = new FlatTrajectoryModel(drag, scene.Atmosphere, scene.LatDeg, windEastMps, windNorthMps, scene.Coriolis, scene.Shear);
         double sg = spin is null ? 0.0 : SpinDrift.StabilityFactor(spin, muzzleVelocityMps);
 
         int evals = 0;
+
+        // The reason a hypothesis fails is the end that BLOCKS the root find (the track left
+        // the terrain, or ran out of time), not whichever trial happened to be evaluated
+        // last. It is set by a blocking end and cleared once a trial at a higher speed
+        // reaches the origin plane again.
+        FlatBackwardEnd? blocking = null;
 
         (double F, Trial T) Eval(double impactSpeed)
         {
             evals++;
             var t = RunTrial(observation, impactSpeed, model, scene, o, spin, sg);
+            var end = t.Backward.EndReason;
+            // Descending branch: a trace that never reaches the shooter's plane (it falls away and
+            // blows up) means the impact speed is too LOW to have come from that plane, not that the
+            // hypothesis is blocked. It is a below-root trial, like MinSpeed.
+            bool tooSlow = o.DescendingLaunch && end == FlatBackwardEnd.NonFinite;
+            if (!tooSlow && (end == FlatBackwardEnd.OutsideTerrain || end == FlatBackwardEnd.TimeLimit || end == FlatBackwardEnd.NonFinite))
+                blocking = end;
+            else if (end == FlatBackwardEnd.ReachedOriginPlane && t.Backward.Velocity.Length - muzzleVelocityMps > 0)
+                blocking = null;
             double f = t.Backward.EndReason switch
             {
                 FlatBackwardEnd.ReachedOriginPlane => t.Backward.Velocity.Length - muzzleVelocityMps,
                 FlatBackwardEnd.MinSpeed => -muzzleVelocityMps,
+                FlatBackwardEnd.NonFinite when o.DescendingLaunch => -muzzleVelocityMps,
                 _ => muzzleVelocityMps,
             };
             return (f, t);
@@ -123,7 +158,7 @@ public static class FlatSolver
         for (int i = 0; i < 8 && fb < 0; i++) { b += 0.1 * muzzleVelocityMps; (fb, lastTrial) = Eval(b); }
 
         if (double.IsNaN(fa) || double.IsNaN(fb) || fa > 0 || fb < 0)
-            return ToOrigin(lastTrial, false, evals);
+            return ToOrigin(lastTrial, false, evals, blocking);
 
         bool lastMovedB = false;
         Trial trialC = lastTrial;
@@ -134,7 +169,7 @@ public static class FlatSolver
             (fc, trialC) = Eval(c);
 
             if (Math.Abs(fc) < o.MvToleranceMps)
-                return ToOrigin(trialC, trialC.Backward.EndReason == FlatBackwardEnd.ReachedOriginPlane, evals);
+                return ToOrigin(trialC, trialC.Backward.EndReason == FlatBackwardEnd.ReachedOriginPlane, evals, blocking);
 
             if (fc > 0)
             {
@@ -155,11 +190,11 @@ public static class FlatSolver
                 // the implied muzzle velocity is NOT the drawn one: not converged.
                 bool onRoot = Math.Abs(fc) < o.MvToleranceMps
                     && trialC.Backward.EndReason == FlatBackwardEnd.ReachedOriginPlane;
-                return ToOrigin(trialC, onRoot, evals);
+                return ToOrigin(trialC, onRoot, evals, blocking);
             }
         }
 
-        return ToOrigin(trialC, Math.Abs(fc) < o.MvToleranceMps && trialC.Backward.EndReason == FlatBackwardEnd.ReachedOriginPlane, evals);
+        return ToOrigin(trialC, Math.Abs(fc) < o.MvToleranceMps && trialC.Backward.EndReason == FlatBackwardEnd.ReachedOriginPlane, evals, blocking);
     }
 
     private readonly record struct Trial(FlatBackwardResult Backward, double SpinDriftM);
@@ -177,11 +212,11 @@ public static class FlatSolver
 
         if (spin is null)
         {
-            var nd = FlatIntegrators.Backward(model, Cartesian3.Zero, vObs, scene.OriginHeightM, o.Dt, o.MaxTimeS, surface: scene.Surface);
+            var nd = FlatIntegrators.Backward(model, Cartesian3.Zero, vObs, scene.OriginHeightM, o.Dt, o.MaxTimeS, surface: scene.Surface, descendingLaunch: o.DescendingLaunch);
             return new Trial(nd, 0.0);
         }
 
-        var first = FlatIntegrators.Backward(model, Cartesian3.Zero, vObs, scene.OriginHeightM, o.Dt, o.MaxTimeS, surface: scene.Surface);
+        var first = FlatIntegrators.Backward(model, Cartesian3.Zero, vObs, scene.OriginHeightM, o.Dt, o.MaxTimeS, surface: scene.Surface, descendingLaunch: o.DescendingLaunch);
         if (first.EndReason != FlatBackwardEnd.ReachedOriginPlane)
             return new Trial(first, 0.0);
 
@@ -197,7 +232,7 @@ public static class FlatSolver
             double drift = SpinDrift.DisplacementM(sg, tof, spin.RightHandTwist);
             double lateralV = SpinDrift.LateralVelocityMps(sg, tof, spin.RightHandTwist);
             var corrected = FlatIntegrators.Backward(
-                model, right * (-drift), vObs - right * lateralV, scene.OriginHeightM, o.Dt, o.MaxTimeS, surface: scene.Surface);
+                model, right * (-drift), vObs - right * lateralV, scene.OriginHeightM, o.Dt, o.MaxTimeS, surface: scene.Surface, descendingLaunch: o.DescendingLaunch);
             trial = new Trial(corrected, drift);
             if (corrected.EndReason != FlatBackwardEnd.ReachedOriginPlane)
                 break;
@@ -208,7 +243,7 @@ public static class FlatSolver
         return trial;
     }
 
-    private static FlatOrigin ToOrigin(Trial t, bool converged, int evals)
+    private static FlatOrigin ToOrigin(Trial t, bool converged, int evals, FlatBackwardEnd? blocking = null)
     {
         var r = t.Backward;
         return new FlatOrigin(
@@ -221,7 +256,7 @@ public static class FlatSolver
             EnuFrame.AzimuthDeg(r.Velocity),
             r.TimeOfFlightS,
             t.SpinDriftM,
-            r.EndReason,
+            converged ? r.EndReason : (blocking ?? r.EndReason),
             evals);
     }
 }

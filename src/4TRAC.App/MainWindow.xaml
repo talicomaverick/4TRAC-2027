@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:mapsui="clr-namespace:Mapsui.UI.Wpf;assembly=Mapsui.UI.Wpf"
         xmlns:system="clr-namespace:System;assembly=System.Runtime"
+        xmlns:vm="clr-namespace:FourTrac.App.ViewModels"
         mc:Ignorable="d"
         Title="4TRAC 2027 - Retrograde Ballistic Solver (flat-earth, 10 km envelope)"
         Width="1320" Height="820" MinWidth="1000" MinHeight="620"
@@ -81,15 +82,42 @@
                         </ScrollViewer>
                     </DockPanel>
                 </Border>
+                <Border Background="#FFF4E0" BorderBrush="#E0A030" BorderThickness="1" CornerRadius="3" Padding="6,4"
+                        Margin="0,0,0,4" MaxHeight="150"
+                        Visibility="{Binding HasPreSolveWarnings, Converter={StaticResource B2V}}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="#6B4A00" FontSize="12" Text="Check before solving:"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding PreSolveWarnings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="11" Foreground="#6B4A00" Margin="0,2,0,0"/></DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+                <TextBlock Text="Results are only as good as the input data: check every value before solving."
+                           TextWrapping="Wrap" FontSize="11" Foreground="#6B4A00" Margin="0,0,0,4"/>
                 <Button Style="{StaticResource Primary}" Content="Solve - find origin regions"
                         Command="{Binding SolveCommand}" Height="40"/>
                 <UniformGrid Columns="2" Margin="0,6,0,0">
                     <Button Content="Case report (HTML)" Command="{Binding ExportReportCommand}" Height="28" Margin="0,0,3,3"/>
-                    <Button Content="GeoJSON (regions)" Command="{Binding ExportGeoJsonCommand}" Height="28" Margin="3,0,0,3"/>
-                    <Button Content="CSV (origin cloud)" Command="{Binding ExportCsvCommand}" Height="28" Margin="0,0,3,0"/>
-                    <Button Content="PNG (map)" Command="{Binding ExportPngCommand}" Height="28" Margin="3,0,0,0"/>
+                    <Button Content="Case report (PDF)" Command="{Binding ExportPdfCommand}" Height="28" Margin="3,0,0,3"
+                            ToolTip="Saves the case report as a PDF using Microsoft Edge or Chrome already installed on this PC."/>
+                    <Button Content="GeoJSON (regions)" Command="{Binding ExportGeoJsonCommand}" Height="28" Margin="0,0,3,3"/>
+                    <Button Content="CSV (origin cloud)" Command="{Binding ExportCsvCommand}" Height="28" Margin="3,0,0,3"/>
+                    <Button Content="PNG (map)" Command="{Binding ExportPngCommand}" Height="28" Margin="0,0,3,0"/>
                 </UniformGrid>
                 <TextBlock Text="Exports are saved to your Desktop." FontSize="11" Foreground="#777777" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6"
+                        IsEnabled="{Binding IsIdle}">
+                <TextBlock Text="Units:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                <RadioButton Content="Imperial" GroupName="Units" IsChecked="{Binding IsImperial}" Margin="0,0,12,0"
+                             VerticalAlignment="Center"/>
+                <RadioButton Content="Metric" GroupName="Units" IsChecked="{Binding IsMetric}" VerticalAlignment="Center"
+                             ToolTip="Typed values are converted when you switch. Bullet mass stays in grains; ranges and areas are always in metres."/>
             </StackPanel>
 
             <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -115,14 +143,24 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0" Text="{Binding Azimuth}" Margin="0,0,2,0"
-                                         ToolTip="True north, not magnetic. Apply magnetic declination yourself."/>
+                                         ToolTip="True north, unless a magnetic declination is entered below."/>
                                 <TextBox Grid.Column="1" Text="{Binding AzimuthSigma}" Margin="2,0,0,0"/>
                             </Grid>
+                            <Label Content="Magnetic declination (deg, east +; 0 = azimuth already true)"/>
+                            <TextBox Text="{Binding Declination}"
+                                     ToolTip="If the azimuth came from a magnetic compass, enter the local declination. True azimuth = entered azimuth + declination. Leave 0 for a true-north azimuth."/>
                             <Label Content="Impact elevation (m; anchors the atmosphere)"/>
                             <TextBox Text="{Binding ImpactElevation}"/>
                             <Label Content="Origin plane height vs impact (m; negative = shooter below the roof)"/>
                             <TextBox Text="{Binding OriginHeight}"
-                                     ToolTip="Ignored when a DEM or SRTM terrain is used."/>
+                                     ToolTip="Ignored when a DEM or SRTM terrain is used. Above 0 means the shooter is higher than the impact (roof, building, hillside); use the Launch search box below to look for a shooter firing down."/>
+                            <Label Content="Launch search (what kind of shooter position to look for)"/>
+                            <ComboBox SelectedIndex="{Binding LaunchBranchIndex}"
+                                      ToolTip="Climbing: a ground-level shooter or a lofted shot. Descending: a shooter on a roof, building or hillside ABOVE the impact, firing down (needs origin height above 0). Both: lists each as a separate candidate zone for the investigator to weigh against the scene.">
+                                <ComboBoxItem Content="Climbing - ground-level or lofted shot"/>
+                                <ComboBoxItem Content="Descending - shooting down from a height"/>
+                                <ComboBoxItem Content="Both - list candidate zones"/>
+                            </ComboBox>
 
                             <Label Content="Terrain"/>
                             <CheckBox Content="Use SRTM terrain (downloads and caches 1-degree tiles)" IsChecked="{Binding UseSrtm}"/>
@@ -138,14 +176,24 @@
                     <Expander>
                         <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="Bullet"/></Expander.Header>
                         <StackPanel Margin="4,0,0,4">
-                            <Label Content="Saved profile"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <ComboBox Grid.Column="0" ItemsSource="{Binding ProfileNames}"
-                                          SelectedItem="{Binding SelectedProfile}" Margin="0,0,2,0"/>
-                                <Button Grid.Column="1" Content="Recall" Command="{Binding RecallProfileCommand}" Padding="10,0"/>
-                            </Grid>
-                            <Label Content="Ballistic coefficient (lb/in^2)  |  sigma (%)"/>
+                            <Border Background="#FFF4E0" BorderBrush="#E0A030" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,2,0,2">
+                                <TextBlock Text="{x:Static vm:MainViewModel.AccuracyWarning}" TextWrapping="Wrap" FontSize="11" Foreground="#6B4A00"/>
+                            </Border>
+                            <Label Content="Saved profile - Assumed Calibre"/>
+                            <ComboBox ItemsSource="{Binding CalibreView}" SelectedItem="{Binding SelectedCalibre}"
+                                      DisplayMemberPath="Name"
+                                      ToolTip="Fills bullet diameter and twist, and offers that calibre's common bullet weights. Everything stays editable.">
+                                <ComboBox.GroupStyle>
+                                    <GroupStyle>
+                                        <GroupStyle.HeaderTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Background="#E8EEF4" Padding="4,2"/>
+                                            </DataTemplate>
+                                        </GroupStyle.HeaderTemplate>
+                                    </GroupStyle>
+                                </ComboBox.GroupStyle>
+                            </ComboBox>
+                            <Label Content="{Binding BcLabel}"/>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0" Text="{Binding BallisticCoefficient}" Margin="0,0,2,0"/>
@@ -156,13 +204,18 @@
                                 <system:String>G1</system:String>
                                 <system:String>G7</system:String>
                             </ComboBox>
-                            <Label Content="Diameter (in)  |  mass (gr)"/>
+                            <Label Content="{Binding DiameterMassLabel}"/>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0" Text="{Binding DiameterIn}" Margin="0,0,2,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding MassGr}" Margin="2,0,0,0"/>
+                                <ComboBox Grid.Column="1" x:Name="MassCombo" Margin="2,0,0,0" IsEditable="True"
+                                          ItemsSource="{Binding BulletOptions}" DisplayMemberPath="Display"
+                                          TextSearch.TextPath="WeightText"
+                                          Text="{Binding MassGr, UpdateSourceTrigger=PropertyChanged}"
+                                          ToolTip="Pick a common weight to fill BC, drag function and length, or type your own value."/>
                             </Grid>
-                            <Label Content="Barrel twist (in per turn)  |  bullet length (in)"/>
+                            <TextBlock Text="{Binding BulletSourceNote}" TextWrapping="Wrap" FontSize="11" Foreground="#6B4A00" Margin="0,3,0,0"/>
+                            <Label Content="{Binding TwistLengthLabel}"/>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0" Text="{Binding TwistIn}" Margin="0,0,2,0"/>
@@ -177,7 +230,7 @@
                     </Expander>
 
                     <Expander>
-                        <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="Muzzle velocity range (fps)"/></Expander.Header>
+                        <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="{Binding MvHeader}"/></Expander.Header>
                         <Grid Margin="4,4,0,4">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBox Grid.Column="0" Text="{Binding MvMinFps}" Margin="0,0,2,0" ToolTip="Minimum (uniform prior)"/>
@@ -188,20 +241,46 @@
                     <Expander>
                         <Expander.Header><TextBlock Style="{StaticResource SectionHeader}" Text="Weather"/></Expander.Header>
                         <StackPanel Margin="4,0,0,4">
-                            <Label Content="Temperature (deg F)  |  station pressure (inHg)  |  humidity (%)"/>
+                            <Label Content="{Binding WeatherLabel}"/>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0" Text="{Binding TemperatureF}" Margin="0,0,2,0"/>
                                 <TextBox Grid.Column="1" Text="{Binding PressureInHg}" Margin="2,0,2,0"/>
                                 <TextBox Grid.Column="2" Text="{Binding RelativeHumidity}" Margin="2,0,0,0"/>
                             </Grid>
-                            <Label Content="Wind (constant): speed (mph)  |  FROM direction (deg true)  |  sigma per axis (m/s)"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" Text="{Binding WindSpeedMph}" Margin="0,0,2,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding WindFromDeg}" Margin="2,0,2,0"/>
-                                <TextBox Grid.Column="2" Text="{Binding WindSigma}" Margin="2,0,0,0"/>
-                            </Grid>
+                            <Label Content="Wind input"/>
+                            <ComboBox SelectedIndex="{Binding WindModeIndex}"
+                                      ToolTip="Use 'Crosswind' when the wind on the day is not known: enter one crosswind speed. It is applied to BOTH sides of the bullet's path (from the left and from the right), so the zone widens to cover either.">
+                                <ComboBoxItem Content="Speed and direction the wind comes FROM"/>
+                                <ComboBoxItem Content="Crosswind only - from left AND right of the path"/>
+                            </ComboBox>
+                            <StackPanel Visibility="{Binding WindIsDirection, Converter={StaticResource B2V}}">
+                                <Label Content="{Binding WindLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding WindSpeedMph}" Margin="0,0,2,0"/>
+                                    <TextBox Grid.Column="1" Text="{Binding WindFromDeg}" Margin="2,0,2,0"/>
+                                    <TextBox Grid.Column="2" Text="{Binding WindSigma}" Margin="2,0,0,0"/>
+                                </Grid>
+                                <Label Content="{Binding WindAloftLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding WindAloftSpeed}" Margin="0,0,2,0"
+                                             ToolTip="Wind above the ground layer. Leave the height at 0 to use the single constant wind above."/>
+                                    <TextBox Grid.Column="1" Text="{Binding WindAloftFromDeg}" Margin="2,0,2,0"/>
+                                    <TextBox Grid.Column="2" Text="{Binding WindAloftHeight}" Margin="2,0,0,0"
+                                             ToolTip="Height above the impact plane (m) from which the wind aloft applies in full. Between the ground and this height the wind is blended linearly. 0 = off."/>
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Visibility="{Binding WindIsCrosswind, Converter={StaticResource B2V}}">
+                                <Label Content="{Binding CrosswindLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding Crosswind}" Margin="0,0,2,0"
+                                             ToolTip="One speed, no sign. It is applied from the left and from the right of the bullet's path at random, so the result covers both."/>
+                                    <TextBox Grid.Column="1" Text="{Binding WindSigma}" Margin="2,0,0,0"/>
+                                </Grid>
+                            </StackPanel>
                         </StackPanel>
                     </Expander>
 

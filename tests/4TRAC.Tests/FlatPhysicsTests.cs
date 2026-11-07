@@ -186,7 +186,7 @@ public class FlatPhysicsTests
             Spin: new FlatSpin(0.308, 168.0, 10.0, 1.22, RightHandTwist: true),
             Hypotheses: 60, Seed: 20261029UL);
 
-        var r = FlatAnalysis.Run(req);
+        var r = FlatAnalysis.Run(req, allowUncalibratedHypothesisCount: true);
 
         Assert.Null(r.Error);
         Assert.Equal(2, r.Bands.Count);
@@ -304,7 +304,7 @@ public class FlatPhysicsTests
             Coriolis: true, Spin: null, Hypotheses: 60, Seed: 7UL,
             DemPath: WriteDem());
 
-        var r = FlatAnalysis.Run(req);
+        var r = FlatAnalysis.Run(req, allowUncalibratedHypothesisCount: true);
 
         // The 0.01-degree test DEM cannot cover a 3.7 km origin: the result must say so.
         Assert.NotNull(r.Error);
@@ -323,7 +323,7 @@ public class FlatPhysicsTests
             TemperatureC: (59 - 32) * 5.0 / 9.0, PressurePa: 29.92 * 3386.39, RelativeHumidity: 0.5,
             WindSpeedMps: 0.0, WindFromDeg: 0.0, WindSigmaMps: 0.5,
             Coriolis: true, Spin: null, Hypotheses: 60, Seed: 42UL);
-        var r = FlatAnalysis.Run(req);
+        var r = FlatAnalysis.Run(req, allowUncalibratedHypothesisCount: true);
 
         var html = CaseReport.Html(req, r, new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc));
 

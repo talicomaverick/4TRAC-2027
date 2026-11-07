@@ -2,6 +2,9 @@ using FourTrac.Core.Geo;
 
 namespace FourTrac.Core.Flat;
 
+/// <summary>The impact state of an aimed truth shot.</summary>
+public readonly record struct FlatShot(Cartesian3 Velocity, double TimeOfFlightS);
+
 /// <summary>
 /// Shooting problem for truth generation: the launch (elevation, azimuth) that
 /// carries a shot from a given origin onto the impact point, for a given muzzle
@@ -19,6 +22,16 @@ public static class FlatShooter
     /// <returns>Impact velocity, or null if the shot cannot be aimed.</returns>
     public static Cartesian3? ImpactVelocity(
         FlatTrajectoryModel model, double muzzleVelocityMps, double ox, double oy, double originHeightM)
+        => Shoot(model, muzzleVelocityMps, ox, oy, originHeightM)?.Velocity;
+
+    /// <summary>
+    /// As <see cref="ImpactVelocity"/>, also returning the time of flight. With
+    /// <paramref name="highArc"/> the search starts from steep launch elevations,
+    /// so the lofted (high-angle) solution is found instead of the flat one.
+    /// </summary>
+    public static FlatShot? Shoot(
+        FlatTrajectoryModel model, double muzzleVelocityMps, double ox, double oy, double originHeightM,
+        bool highArc = false, bool descending = false)
     {
         ArgumentNullException.ThrowIfNull(model);
         if (!(muzzleVelocityMps > 0)) throw new ArgumentOutOfRangeException(nameof(muzzleVelocityMps));
@@ -28,29 +41,37 @@ public static class FlatShooter
         double tx = -ox, ty = -oy;
         double mv = muzzleVelocityMps;
 
-        bool Miss(double e, double a, out double dx, out double dy, out Cartesian3 vel)
+        bool Miss(double e, double a, out double dx, out double dy, out FlatForwardResult fwd)
         {
-            var f = FlatIntegrators.Forward(model, start, EnuFrame.DirectionFromAzimuthElevation(a, e) * mv);
-            dx = f.Position.X - tx;
-            dy = f.Position.Y - ty;
-            vel = f.Velocity;
-            return f.Hit;
+            fwd = FlatIntegrators.Forward(model, start, EnuFrame.DirectionFromAzimuthElevation(a, e) * mv);
+            dx = fwd.Position.X - tx;
+            dy = fwd.Position.Y - ty;
+            return fwd.Hit;
         }
 
         double az0 = Math.Atan2(-ox, -oy) * UnitConversions.RadToDeg;
         const double step = 1e-5;
 
         // Several starting elevations: drag makes the vacuum estimate poor at long range.
-        foreach (double elev0 in new[] { 1.0, 3.0, 6.0, 10.0, 16.0, 24.0, 35.0, 50.0 })
+        // Descending: the shooter's plane is above the impact and the launch is DOWNWARD (negative
+        // elevation). Starts are spread from shallow to steep; the Newton step is bounded by -89..-0.1 deg.
+        double[] starts = descending
+            ? new[] { -10.0, -20.0, -30.0, -5.0, -45.0, -60.0, -2.0, -75.0 }
+            : highArc
+                ? new[] { 45.0, 55.0, 65.0, 75.0, 35.0, 25.0 }
+                : new[] { 1.0, 3.0, 6.0, 10.0, 16.0, 24.0, 35.0, 50.0 };
+        double minElev = highArc ? 15.0 : 0.0;
+
+        foreach (double elev0 in starts)
         {
             double elev = elev0, az = az0;
-            for (int it = 0; it < 30; it++)
+            for (int it = 0; it < 40; it++)
             {
                 if (!Miss(elev, az, out double rx, out double ry, out _)) break;
                 if (Math.Sqrt(rx * rx + ry * ry) < 1e-3)
                 {
-                    Miss(elev, az, out _, out _, out var v);
-                    return v;
+                    Miss(elev, az, out _, out _, out var f);
+                    return new FlatShot(f.Velocity, f.TimeOfFlightS);
                 }
                 Miss(elev + step, az, out double ex1, out double ey1, out _);
                 Miss(elev, az + step, out double ex2, out double ey2, out _);
@@ -62,7 +83,7 @@ public static class FlatShooter
                 double da = (-j21 * rx + j11 * ry) / det;
                 elev -= de;
                 az -= da;
-                if (elev <= 0.0 || elev >= 89.0) break;
+                if (descending ? (elev >= -0.1 || elev <= -89.0) : (elev <= minElev || elev >= 89.0)) break;
             }
         }
         return null;

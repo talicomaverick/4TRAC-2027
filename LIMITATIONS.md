@@ -1,4 +1,4 @@
-# 4TRAC 2027 — Declared Limitations (v1.0)
+# 4TRAC 2027 — Declared Limitations (v1.1)
 
 **Retrograde Ballistic Solver — Forensic Shooting Reconstruction**
 
@@ -22,7 +22,11 @@ These limitations are stated in the product, not hidden. Every case report gener
    the production flat solver in v1.
 
 4. **Constant wind.** Wind is a single, constant air-motion vector resolved once into the
-   ECEF frame. No layered wind profile, no wind gradients, no vertical wind variation.
+   local east-north frame. No layered wind profile, no wind gradients, no vertical wind
+   variation. An optional second layer (wind aloft from a stated height, linear blend, shared
+   uncertainty) is available; it is not calibrated and not used by any validation run. When no wind data exist, the crosswind-only mode applies a stated crosswind
+   from the left or right at random per hypothesis; head and tail wind are not modelled in
+   that mode and the zone is correspondingly wider.
 
 5. **Spin drift is post-integration.** Spin drift (Litz form) is applied as a post-integration
    lateral displacement and velocity, not as an EOM force term. This is the published
@@ -33,11 +37,14 @@ These limitations are stated in the product, not hidden. Every case report gener
 
 ## Solver limitations
 
-7. **Ascending origins only.** The solver reports the first crossing of the origin plane
-   with ENU vertical velocity > 0 (a lofted launch leaves the plane ascending). Descending
-   launch origins (a shooter below the plane firing downward onto it) are not reported. A
-   descending shooter from a plane above the impact can match the same impact and is then
-   not represented.
+7. **Two launch branches, one flat origin plane.** The Climbing search (default) reports the
+   first crossing of the origin plane with ENU vertical velocity > 0. The Descending search
+   reports a crossing with vertical velocity < 0, which represents a shooter on a plane above
+   the impact (roof, high-rise, hillside) firing downward. Both assume ONE flat plane at the
+   height entered; buildings and uneven slopes are not read from map data. The two branches
+   can match the same impact, so Both returns separate candidate zones for the investigator
+   to judge from the scene. The descending branch is validated for handgun cells only
+   (flat plane, exact priors, 320 trials).
 
 8. **Single shot only.** No ricochet or multiple-hole reconstruction.
 
@@ -45,15 +52,21 @@ These limitations are stated in the product, not hidden. Every case report gener
    Cells below the published 400 fps (121.92 m/s) bound are flagged LOW-MACH: they validate
    the solver (truth and inverse share the same curve) but do not validate the bullet model.
 
+9a. **Steep impacts.** Above about 50 degrees the range along the bearing is poorly
+    constrained (400-800 m shifts at 68-80 degrees) while the bearing stays reliable. The
+    steep, near-vertical rifle suite under-covered (95 % region 82 %). The app warns before
+    and after solving. Spin drift is extrapolated outside its calibration at steep angles
+    and long flight times, and this is also warned.
+
 ## Input and measurement limitations
 
 10. **Exterior angle preferred.** Interior penetration angles (after the bullet enters the
     structure) are proxies only. The solver prefers the exterior angle with its uncertainty;
     interior-only input is accepted with an explicit warning flag.
 
-11. **Magnetic declination: manual only.** Azimuth inputs must be true north. If the scene
-    measurement came from a magnetic compass, the user must enter magnetic declination for
-    date/location. Auto-IGRF is deferred to v1.1.
+11. **Magnetic declination: manual only.** Azimuth inputs are true north unless a declination
+    (east positive) is entered; the user must look up the value for the date and location.
+    The correction is stated in the results. Auto-IGRF is not implemented.
 
 12. **DEM vertical error.** DEM elevation error propagates into origin range through the
     Δz / tan(θ) term. At shallow incidence angles (e.g. θ = 5°), a 10 m vertical error
@@ -75,21 +88,28 @@ These limitations are stated in the product, not hidden. Every case report gener
     calibration. Strongly non-convex or multi-modal clouds may require manual inspection;
     coverage is validated on the calibration matrix, not guaranteed for arbitrary clouds.
 
-16. **Coverage is a whole-matrix statement.** V2 coverage gates (95 % ∈ [92,98], 50 % ∈
+16. **Calibration domain.** Coverage was measured for rifle shots with spin off at 3-4.5 km
+    (500 hypotheses), with spin on at 500-2000 m, and for handgun shots on the descending
+    branch at 100-250 m, always under exact priors. Results outside those conditions carry
+    no coverage claim; fewer than 500 hypotheses is refused, and more than 5 % of hypotheses
+    rejected gives no region.
+
+17. **Coverage is a whole-matrix statement.** V2 coverage gates (95 % ∈ [92,98], 50 % ∈
     [45,55]) apply to the full validation matrix, not to tight-prior subsets. Tight-prior
     subsets over-cover by construction.
 
 ## Product scope
 
-17. **No PDF case report (v1).** Case reports are HTML only. PDF export is deferred.
+18. **PDF case report depends on a browser.** The PDF is made by printing the HTML report through
+    Microsoft Edge or Chrome already on the PC; without one, only the HTML report is available.
 
-18. **No bullet profile CRUD at runtime.** Profiles are loaded from `data/profiles/` JSON
-    files at startup; they cannot be created, edited, or deleted from the UI in v1.
+19. **No bullet profile CRUD at runtime.** Calibre and bullet data come from the calibre
+    database; they cannot be created, edited, or deleted from the UI in v1.
 
-19. **No automatic DEM download decision.** SRTM tiles from AWS are supported, but the user
+20. **No automatic DEM download decision.** SRTM tiles from AWS are supported, but the user
     must enable "Use SRTM terrain" or supply a local ESRI ASCII grid. No other DEM sources.
 
-20. **No field validation (V4).** V4 field validation (RTK-GPS muzzle positions, instrumented
+21. **No field validation (V4).** V4 field validation (RTK-GPS muzzle positions, instrumented
     target, blind trials) requires a live range and is deferred.
 
 ## Use statement

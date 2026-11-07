@@ -50,7 +50,7 @@ public sealed record BulletProfile(
             BcSigmaFraction,
             ReferenceStandard,
             Notes
-        }, new JsonSerializerOptions { WriteIndented = true });
+        }, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
     /// <summary>Deserialize from JSON, rejecting unknown fields.</summary>
     public static BulletProfile FromJson(string json)

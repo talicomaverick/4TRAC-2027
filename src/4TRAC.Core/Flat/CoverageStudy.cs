@@ -35,7 +35,9 @@ public sealed record CoverageConfig(
     double AzimuthSigmaDeg,
     FlatSpin? Spin,
     double OriginRangeMinM = 0.0,
-    double OriginRangeMaxM = 0.0);
+    double OriginRangeMaxM = 0.0,
+    bool HighArc = false,
+    bool Descending = false);
 
 /// <summary>One calibration trial. Errors are in metres in the impact frame; the signed error is truth minus the cloud median.</summary>
 public sealed record CoverageTrial(
@@ -60,7 +62,13 @@ public sealed record CoverageResult(
     double Coverage50,
     double Coverage95,
     double MedianErrorM,
-    ulong Seed);
+    ulong Seed,
+    int SkippedInvalidDraw = 0,
+    int SkippedNotAimable = 0,
+    int SkippedTooFewConverged = 0);
+
+/// <summary>Why a trial was skipped (the three counts always sum to <see cref="CoverageResult.Skipped"/>).</summary>
+public enum CoverageSkipReason { None, InvalidDraw, NotAimable, TooFewConverged }
 
 public static class CoverageStudy
 {
@@ -78,13 +86,19 @@ public static class CoverageStudy
 
         var o = options ?? new FlatSolveOptions();
         var results = new List<CoverageTrial>(trials);
-        int skipped = 0;
+        int skipped = 0, skipInvalid = 0, skipAim = 0, skipFew = 0;
 
         for (int i = 0; i < trials; i++)
         {
             ulong trialSeed = seed ^ (0x9E3779B97F4A7C15UL * (ulong)(i + 1));
-            var trial = RunTrial(config, i, trialSeed, hypothesesPerTrial, o, sampleCalibrated);
-            if (trial is null) skipped++;
+            var trial = RunTrial(config, i, trialSeed, hypothesesPerTrial, o, sampleCalibrated, out var why);
+            if (trial is null)
+            {
+                skipped++;
+                if (why == CoverageSkipReason.InvalidDraw) skipInvalid++;
+                else if (why == CoverageSkipReason.TooFewConverged) skipFew++;
+                else skipAim++;
+            }
             else results.Add(trial);
         }
 
@@ -93,12 +107,13 @@ public static class CoverageStudy
         double c95 = n == 0 ? double.NaN : results.Count(t => t.Covered95) / (double)n;
         double medErr = n == 0 ? double.NaN : Median(results.Select(t => t.MedianErrorM).ToArray());
 
-        return new CoverageResult(results, skipped, c50, c95, medErr, seed);
+        return new CoverageResult(results, skipped, c50, c95, medErr, seed, skipInvalid, skipAim, skipFew);
     }
 
     private static CoverageTrial? RunTrial(
-        CoverageConfig c, int index, ulong trialSeed, int hypotheses, FlatSolveOptions o, bool sampleCalibrated)
+        CoverageConfig c, int index, ulong trialSeed, int hypotheses, FlatSolveOptions o, bool sampleCalibrated, out CoverageSkipReason skip)
     {
+        skip = CoverageSkipReason.None;
         var rng = new Xoshiro256(trialSeed);
 
         // Truth drawn from the same priors the inverse will declare.
@@ -106,7 +121,7 @@ public static class CoverageStudy
         double bc = ScalarPrior.Normal(c.BcNominalLbIn2, c.BcSigmaLbIn2).Sample(rng);
         double we = ScalarPrior.Normal(c.WindEastMps, c.WindSigmaMps).Sample(rng);
         double wn = ScalarPrior.Normal(c.WindNorthMps, c.WindSigmaMps).Sample(rng);
-        if (!(bc > 0)) return null;
+        if (!(bc > 0)) { skip = CoverageSkipReason.InvalidDraw; return null; }
 
         var truthDrag = new BcDragModel(c.Reference, new ConstantBcProvider(bc));
         var truthScene = new FlatScene(c.LatDeg, c.OriginHeightM, c.Atmosphere, c.Coriolis);
@@ -117,15 +132,13 @@ public static class CoverageStudy
         {
             // Flat origin prior: the shooter's position is uniform by area in the annulus;
             // the launch that reaches the impact is then found by shooting.
-            if (c.Spin is not null)
-                throw new ArgumentException("Origin-prior truth does not yet include spin drift.");
             double r = Math.Sqrt(ScalarPrior.Uniform(c.OriginRangeMinM * c.OriginRangeMinM, c.OriginRangeMaxM * c.OriginRangeMaxM).Sample(rng));
             double bearing = ScalarPrior.Uniform(0.0, 360.0).Sample(rng) * UnitConversions.DegToRad;
             double ox = r * Math.Sin(bearing), oy = r * Math.Cos(bearing);
-            var shot = FlatShooter.ImpactVelocity(
-                new FlatTrajectoryModel(truthDrag, c.Atmosphere, c.LatDeg, we, wn, c.Coriolis), mv, ox, oy, c.OriginHeightM);
-            if (shot is null) return null;
-            impactVel = shot.Value;
+            var shotModel = new FlatTrajectoryModel(truthDrag, c.Atmosphere, c.LatDeg, we, wn, c.Coriolis);
+            var shotResult = ObservedImpactVelocity(shotModel, mv, ox, oy, c.OriginHeightM, c.Spin, c.HighArc, c.Descending);
+            if (shotResult is null) { skip = CoverageSkipReason.NotAimable; return null; }
+            impactVel = shotResult.Value;
             truth = new Vec2(ox, oy);
         }
         else
@@ -133,7 +146,7 @@ public static class CoverageStudy
             // Launch-elevation prior (the earlier design): the origin prior is then not flat.
             double launchElev = ScalarPrior.Uniform(c.LaunchElevationMinDeg, c.LaunchElevationMaxDeg).Sample(rng);
             var impact = TruthImpact(c, launchElev, truthDrag, mv, we, wn);
-            if (impact is null) return null;
+            if (impact is null) { skip = CoverageSkipReason.NotAimable; return null; }
             impactVel = impact.Value.Velocity;
             truth = new Vec2(-impact.Value.Impact.X, -impact.Value.Impact.Y);
         }
@@ -152,8 +165,13 @@ public static class CoverageStudy
             ScalarPrior.Normal(c.WindEastMps, c.WindSigmaMps),
             ScalarPrior.Normal(c.WindNorthMps, c.WindSigmaMps));
 
-        var cloud = FlatCloud.Run(priors, c.Reference, truthScene, c.Spin, hypotheses, trialSeed ^ 0xD1B54A32D192ED03UL, o);
-        if (cloud.Points.Count < 10) return null;
+        var cloudOptions = !c.Descending ? o : new FlatSolveOptions
+        {
+            Dt = o.Dt, MaxTimeS = o.MaxTimeS, EnvelopeM = o.EnvelopeM,
+            MvToleranceMps = o.MvToleranceMps, MaxEvaluations = o.MaxEvaluations, DescendingLaunch = true,
+        };
+        var cloud = FlatCloud.Run(priors, c.Reference, truthScene, c.Spin, hypotheses, trialSeed ^ 0xD1B54A32D192ED03UL, cloudOptions);
+        if (cloud.Points.Count < 10) { skip = CoverageSkipReason.TooFewConverged; return null; }
 
         var pts = cloud.Points.Select(p => new Vec2(p.EastM, p.NorthM)).ToList();
         var hdr = Hdr.Compute(pts, FlatCloud.ChooseCellSize(cloud.Points), new[] { 0.5, 0.95 }, 0.0, sampleCalibrated);
@@ -173,6 +191,40 @@ public static class CoverageStudy
             cloud.OutsideEnvelope,
             exterior,
             truth.Length);
+    }
+
+
+    /// <summary>
+    /// Truth shot from the origin (ox, oy) onto the observed impact (the frame origin).
+    /// Without spin this is the aimed shot. With spin the observed impact is the
+    /// drift-free landing point displaced to the right by D(T), and the observed
+    /// velocity carries the lateral velocity D'(T) (exactly what the inverse
+    /// removes), so the drift-free shot must land at -right*D: iterate D and T.
+    /// </summary>
+    public static Cartesian3? ObservedImpactVelocity(
+        FlatTrajectoryModel model, double mv, double ox, double oy, double originHeightM, FlatSpin? spin, bool highArc, bool descending = false)
+    {
+        if (spin is null)
+            return FlatShooter.Shoot(model, mv, ox, oy, originHeightM, highArc, descending)?.Velocity;
+
+        double sg = SpinDrift.StabilityFactor(spin, mv);
+        double az = Math.Atan2(-ox, -oy) * UnitConversions.RadToDeg;
+        double drift = 0.0;
+        Cartesian3 observed = default;
+        for (int pass = 0; pass < 8; pass++)
+        {
+            var right = SpinDrift.RightOf(az);
+            var shot = FlatShooter.Shoot(model, mv, ox + right.X * drift, oy + right.Y * drift, originHeightM, highArc, descending);
+            if (shot is null) return null;
+            double newDrift = SpinDrift.DisplacementM(sg, shot.Value.TimeOfFlightS, spin.RightHandTwist);
+            double lateral = SpinDrift.LateralVelocityMps(sg, shot.Value.TimeOfFlightS, spin.RightHandTwist);
+            observed = shot.Value.Velocity + right * lateral;
+            az = EnuFrame.AzimuthDeg(observed);
+            bool settled = Math.Abs(newDrift - drift) < 1e-4;
+            drift = newDrift;
+            if (settled) break;
+        }
+        return observed;
     }
 
     /// <summary>

@@ -1,14 +1,13 @@
 <Window x:Class="FourTrac.App.StartupChoiceWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="4TRAC 2027" Width="520" Height="300" ResizeMode="NoResize"
-        WindowStartupLocation="CenterScreen" ShowInTaskbar="True"
+        Title="4TRAC 2027" Width="520" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" ShowInTaskbar="True" Background="#101820"
         Icon="pack://application:,,,/Assets/4trac2.ico">
-    <Grid>
-        <Grid.Background>
-            <ImageBrush ImageSource="pack://application:,,,/Assets/4tracSplash.jpg" Stretch="UniformToFill"/>
-        </Grid.Background>
-        <Border VerticalAlignment="Bottom" Background="#D9101820" Padding="16,12">
+    <StackPanel>
+        <!-- The whole image is shown (no cropping); height follows the image's own aspect ratio. -->
+        <Image Source="pack://application:,,,/Assets/4tracSplash.jpg" Stretch="Uniform"/>
+        <Border Background="#101820" Padding="16,12">
             <StackPanel>
                 <TextBlock Text="Previous session found" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
                 <TextBlock Foreground="#DDE6EE" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"
@@ -21,5 +20,5 @@
                 </StackPanel>
             </StackPanel>
         </Border>
-    </Grid>
+    </StackPanel>
 </Window>

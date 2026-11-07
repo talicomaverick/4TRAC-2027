@@ -1,0 +1,143 @@
+Category,PopularityRank,Calibre,BulletDiameterIn,TypicalFactoryTwistIn,BulletWeightGr,BulletType,G1_BC,G7_BC,DragFunctionUsed,BC_Used,EstimatedBulletLengthIn,Source,Status,TypicalMvMinFps,TypicalMvMaxFps
+Handgun,1,9mm Luger,0.355,10,115,XTP JHP,0.129,,G1,0.129,0.553,Hornady 2024 bullets+ammo poster,Sourced,1100,1300
+Handgun,1,9mm Luger,0.355,10,124,XTP JHP,0.165,,G1,0.165,0.597,Hornady 2024 bullets+ammo poster,Sourced,1050,1250
+Handgun,1,9mm Luger,0.355,10,147,XTP JHP,0.212,,G1,0.212,0.707,Hornady 2024 bullets+ammo poster,Sourced,900,1100
+Handgun,2,.45 ACP,0.451,16,185,XTP JHP,0.139,,G1,0.139,0.551,Hornady 2024 bullets+ammo poster,Sourced,950,1150
+Handgun,2,.45 ACP,0.451,16,200,XTP JHP,0.151,,G1,0.151,0.596,Hornady 2024 bullets+ammo poster,Sourced,900,1050
+Handgun,2,.45 ACP,0.451,16,230,XTP JHP,0.188,,G1,0.188,0.686,Hornady 2024 bullets+ammo poster,Sourced,800,950
+Handgun,3,.40 S&W,0.4,16,155,XTP JHP,0.137,,G1,0.137,0.587,Hornady 2024 bullets+ammo poster,Sourced,1150,1300
+Handgun,3,.40 S&W,0.4,16,165,JHP,0.172,,G1,0.172,0.625,Sig Sauer Ballistics Data 2024,Sourced,1100,1200
+Handgun,3,.40 S&W,0.4,16,180,XTP JHP,0.164,,G1,0.164,0.682,Hornady 2024 bullets+ammo poster,Sourced,950,1100
+Handgun,4,.380 ACP,0.355,16,90,XTP JHP,0.099,,G1,0.099,0.433,Hornady 2024 bullets+ammo poster,Sourced,900,1050
+Handgun,4,.380 ACP,0.355,16,100,FMJ,0.117,,G1,0.117,0.481,Sig Sauer Ballistics Data 2024,Sourced,850,950
+Handgun,5,.38 Special,0.357,18.75,110,XTP JHP,0.131,,G1,0.131,0.523,Hornady 2024 bullets+ammo poster,Sourced,950,1100
+Handgun,5,.38 Special,0.357,18.75,125,XTP JHP,0.151,,G1,0.151,0.595,Hornady 2024 bullets+ammo poster,Sourced,800,1000
+Handgun,5,.38 Special,0.357,18.75,140,XTP JHP,0.169,,G1,0.169,0.666,Hornady 2024 bullets+ammo poster,Sourced,750,900
+Handgun,5,.38 Special,0.357,18.75,158,XTP JHP,0.206,,G1,0.206,0.752,Hornady 2024 bullets+ammo poster,Sourced,750,900
+Handgun,6,.357 Magnum,0.357,18.75,110,XTP JHP,0.131,,G1,0.131,0.523,Hornady 2024 bullets+ammo poster,Sourced,1300,1450
+Handgun,6,.357 Magnum,0.357,18.75,125,XTP JHP,0.151,,G1,0.151,0.595,Hornady 2024 bullets+ammo poster,Sourced,1350,1500
+Handgun,6,.357 Magnum,0.357,18.75,140,XTP JHP,0.169,,G1,0.169,0.666,Hornady 2024 bullets+ammo poster,Sourced,1200,1400
+Handgun,6,.357 Magnum,0.357,18.75,158,XTP JHP,0.206,,G1,0.206,0.752,Hornady 2024 bullets+ammo poster,Sourced,1150,1300
+Handgun,7,10mm Auto,0.4,16,155,XTP JHP,0.137,,G1,0.137,0.587,Hornady 2024 bullets+ammo poster,Sourced,1350,1500
+Handgun,7,10mm Auto,0.4,16,180,XTP JHP,0.164,,G1,0.164,0.682,Hornady 2024 bullets+ammo poster,Sourced,1150,1300
+Handgun,7,10mm Auto,0.4,16,200,XTP JHP,0.199,,G1,0.199,0.758,Hornady 2024 bullets+ammo poster,Sourced,1050,1200
+Handgun,8,.44 Magnum,0.429,20,180,XTP JHP,0.138,,G1,0.138,0.593,Hornady 2024 bullets+ammo poster,Sourced,1500,1650
+Handgun,8,.44 Magnum,0.429,20,200,XTP JHP,0.17,,G1,0.17,0.659,Hornady 2024 bullets+ammo poster,Sourced,1350,1500
+Handgun,8,.44 Magnum,0.429,20,240,XTP JHP,0.205,,G1,0.205,0.791,Hornady 2024 bullets+ammo poster,Sourced,1250,1450
+Handgun,8,.44 Magnum,0.429,20,300,XTP JHP,0.245,,G1,0.245,0.988,Hornady 2024 bullets+ammo poster,Sourced,1150,1300
+Handgun,9,5.7x28mm,0.224,9,27,HP,0.095,,G1,0.095,0.326,ESTIMATE - not verified,Estimate,2000,2300
+Handgun,9,5.7x28mm,0.224,9,40,V-Max,0.14,,G1,0.14,0.549,ESTIMATE - not verified,Estimate,1650,1800
+Handgun,10,.45 Colt,0.452,16,200,JHP,0.13,,G1,0.13,0.594,ESTIMATE - not verified,Estimate,900,1050
+Handgun,10,.45 Colt,0.452,16,250,LRN/JHP,0.17,,G1,0.17,0.696,ESTIMATE - not verified,Estimate,800,950
+Handgun,10,.45 Colt,0.452,16,255,LSWC,0.18,,G1,0.18,0.709,ESTIMATE - not verified,Estimate,750,900
+Handgun,10,.45 Colt,0.452,16,300,JHP,0.23,,G1,0.23,0.89,ESTIMATE - not verified,Estimate,900,1250
+Handgun,11,.357 SIG,0.355,16,115,JHP,0.13,,G1,0.13,0.553,ESTIMATE - not verified,Estimate,1350,1450
+Handgun,11,.357 SIG,0.355,16,125,JHP (V-Crown),0.158,,G1,0.158,0.601,Sig Sauer Ballistics Data 2024,Sourced,1300,1400
+Handgun,11,.357 SIG,0.355,16,147,JHP,0.18,,G1,0.18,0.707,ESTIMATE - not verified,Estimate,1050,1150
+Handgun,12,.32 ACP,0.312,16,60,JHP,0.09,,G1,0.09,0.374,ESTIMATE - not verified,Estimate,850,1000
+Handgun,12,.32 ACP,0.312,16,71,FMJ,0.11,,G1,0.11,0.442,ESTIMATE - not verified,Estimate,850,1000
+Handgun,12,.32 ACP,0.312,16,73,FMJ,0.115,,G1,0.115,0.455,ESTIMATE - not verified,Estimate,850,1000
+Handgun,13,.38 Super,0.355,16,115,FMJ,0.13,,G1,0.13,0.553,ESTIMATE - not verified,Estimate,1100,1300
+Handgun,13,.38 Super,0.355,16,125,FMJ/JHP,0.14,,G1,0.14,0.601,ESTIMATE - not verified,Estimate,1100,1250
+Handgun,13,.38 Super,0.355,16,130,FMJ,0.15,,G1,0.15,0.625,ESTIMATE - not verified,Estimate,1050,1200
+Handgun,14,.44 Special,0.429,20,200,JHP,0.15,,G1,0.15,0.659,ESTIMATE - not verified,Estimate,850,950
+Handgun,14,.44 Special,0.429,20,240,LSWC,0.17,,G1,0.17,0.741,ESTIMATE - not verified,Estimate,750,850
+Handgun,14,.44 Special,0.429,20,246,LRN,0.175,,G1,0.175,0.76,ESTIMATE - not verified,Estimate,700,800
+Handgun,15,.454 Casull,0.452,20,240,JHP,0.17,,G1,0.17,0.712,ESTIMATE - not verified,Estimate,1700,1900
+Handgun,15,.454 Casull,0.452,20,260,JHP,0.19,,G1,0.19,0.772,ESTIMATE - not verified,Estimate,1600,1800
+Handgun,15,.454 Casull,0.452,20,300,JHP,0.23,,G1,0.23,0.89,ESTIMATE - not verified,Estimate,1500,1650
+Handgun,16,.500 S&W Magnum,0.5,18.75,325,FP,0.18,,G1,0.18,0.739,ESTIMATE - not verified,Estimate,1450,1750
+Handgun,16,.500 S&W Magnum,0.5,18.75,350,XTP Mag JHP,0.145,,G1,0.145,0.849,Hornady 2024 bullets+ammo poster,Sourced,1350,1500
+Handgun,17,.41 Magnum,0.41,18.75,170,JHP,0.13,,G1,0.13,0.613,ESTIMATE - not verified,Estimate,1300,1500
+Handgun,17,.41 Magnum,0.41,18.75,210,XTP JHP,0.182,,G1,0.182,0.757,Hornady 2024 bullets+ammo poster,Sourced,1250,1400
+Handgun,17,.41 Magnum,0.41,18.75,240,JHP,0.2,,G1,0.2,0.866,ESTIMATE - not verified,Estimate,1150,1350
+Handgun,18,.327 Federal Magnum,0.312,16,85,JHP,0.13,,G1,0.13,0.529,ESTIMATE - not verified,Estimate,1900,2100
+Handgun,18,.327 Federal Magnum,0.312,16,100,JHP,0.17,,G1,0.17,0.623,ESTIMATE - not verified,Estimate,1450,1650
+Handgun,18,.327 Federal Magnum,0.312,16,115,JHP,0.19,,G1,0.19,0.716,ESTIMATE - not verified,Estimate,1250,1450
+Handgun,19,.25 ACP,0.251,16,35,JHP,0.075,,G1,0.075,0.337,ESTIMATE - not verified,Estimate,900,1000
+Handgun,19,.25 ACP,0.251,16,50,FMJ,0.11,,G1,0.11,0.481,ESTIMATE - not verified,Estimate,700,900
+Handgun,20,.45 GAP,0.451,16,185,JHP,0.12,,G1,0.12,0.551,ESTIMATE - not verified,Estimate,1050,1150
+Handgun,20,.45 GAP,0.451,16,200,JHP,0.14,,G1,0.14,0.596,ESTIMATE - not verified,Estimate,950,1050
+Handgun,20,.45 GAP,0.451,16,230,FMJ,0.17,,G1,0.17,0.686,ESTIMATE - not verified,Estimate,850,950
+Rifle,1,.223 Rem / 5.56x45,0.224,8,55,V-Max,0.255,,G1,0.255,0.755,Hornady 2024 bullets+ammo poster,Sourced,3000,3300
+Rifle,1,.223 Rem / 5.56x45,0.224,8,62,M855 FMJ,0.3,0.151,G1,0.3,0.749,ESTIMATE - not verified,Estimate,2900,3100
+Rifle,1,.223 Rem / 5.56x45,0.224,8,69,SMK,0.301,0.152,G7,0.152,0.947,ESTIMATE - not verified,Estimate,2700,3000
+Rifle,1,.223 Rem / 5.56x45,0.224,8,77,FMJ OTM,0.362,,G1,0.362,1.057,Sig Sauer Ballistics Data 2024,Sourced,2600,2800
+Rifle,2,6.5 Creedmoor,0.264,8,120,Copper HT,0.38,,G1,0.38,1.186,Sig Sauer Ballistics Data 2024,Sourced,2750,3000
+Rifle,2,6.5 Creedmoor,0.264,8,129,AccuBond LR,0.53,0.267,G7,0.267,1.275,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2750,3000
+Rifle,2,6.5 Creedmoor,0.264,8,140,ELD Match,0.646,0.326,G7,0.326,1.384,Hornady 2024 bullets+ammo poster,Sourced,2550,2800
+Rifle,2,6.5 Creedmoor,0.264,8,147,ELD Match,0.697,0.351,G7,0.351,1.453,Hornady 2024 bullets+ammo poster,Sourced,2450,2700
+Rifle,3,.308 Winchester,0.308,10,150,FMJ,0.398,,G1,0.398,0.959,Sig Sauer Ballistics Data 2024,Sourced,2700,2950
+Rifle,3,.308 Winchester,0.308,10,168,FMJ OTM,0.462,,G1,0.462,1.22,Sig Sauer Ballistics Data 2024,Sourced,2550,2800
+Rifle,3,.308 Winchester,0.308,10,175,FMJ OTM,0.496,,G1,0.496,1.271,Sig Sauer Ballistics Data 2024,Sourced,2500,2700
+Rifle,3,.308 Winchester,0.308,10,178,ELD-X,0.552,0.278,G7,0.278,1.293,Hornady 2024 bullets+ammo poster,Sourced,2500,2700
+Rifle,4,.30-06 Springfield,0.308,10,150,FMJ,0.398,,G1,0.398,0.959,"Sig Sauer Ballistics Data 2024 (30-cal bullet, not 30-06 specific)",Sourced,2750,3000
+Rifle,4,.30-06 Springfield,0.308,10,168,FMJ OTM,0.462,,G1,0.462,1.22,Sig Sauer Ballistics Data 2024 (30-cal bullet),Sourced,2600,2850
+Rifle,4,.30-06 Springfield,0.308,10,190,AccuBond LR,0.64,0.325,G7,0.325,1.38,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper) (30-cal bullet),Sourced,2450,2700
+Rifle,5,6.5 PRC,0.264,8,142,AccuBond LR,0.625,0.315,G7,0.315,1.404,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2800,3050
+Rifle,5,6.5 PRC,0.264,8,147,ELD Match,0.697,0.351,G7,0.351,1.453,Hornady 2024 bullets+ammo poster,Sourced,2700,2950
+Rifle,5,6.5 PRC,0.264,8,150,AccuBond LR,0.634,0.319,G7,0.319,1.483,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2700,2900
+Rifle,6,7mm PRC,0.284,8.5,168,AccuBond LR,0.616,0.31,G7,0.31,1.435,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2950,3150
+Rifle,6,7mm PRC,0.284,8.5,175,AccuBond LR,0.648,0.326,G7,0.326,1.495,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2900,3100
+Rifle,6,7mm PRC,0.284,8.5,180,ELD Match,0.777,0.391,G7,0.391,1.538,Hornady 2024 bullets+ammo poster,Sourced,2850,3050
+Rifle,7,.300 Winchester Magnum,0.308,10,190,AccuBond LR,0.64,0.325,G7,0.325,1.38,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2750,3000
+Rifle,7,.300 Winchester Magnum,0.308,10,200,ELD-X,0.597,0.301,G7,0.301,1.453,Hornady 2024 bullets+ammo poster,Sourced,2750,2950
+Rifle,7,.300 Winchester Magnum,0.308,10,210,AccuBond LR,0.661,0.333,G7,0.333,1.525,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2700,2900
+Rifle,8,.270 Winchester,0.277,10,145,ELD-X,0.536,0.27,G7,0.27,1.302,Hornady 2024 bullets+ammo poster,Sourced,2800,3050
+Rifle,8,.270 Winchester,0.277,10,150,AccuBond LR,0.591,0.298,G7,0.298,1.347,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2750,3000
+Rifle,8,.270 Winchester,0.277,10,165,AccuBond LR,0.62,0.312,G7,0.312,1.482,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2650,2900
+Rifle,9,.243 Winchester,0.243,10,85,Trophy Copper,0.391,,G1,0.391,0.992,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,3100,3400
+Rifle,9,.243 Winchester,0.243,10,90,ELD-X,0.409,0.206,G7,0.206,1.05,Hornady 2024 bullets+ammo poster,Sourced,2950,3200
+Rifle,9,.243 Winchester,0.243,10,95,Berger Hybrid Hunter,0.434,0.223,G7,0.223,1.108,Federal 2026 catalog (Berger),Sourced,2900,3150
+Rifle,9,.243 Winchester,0.243,10,105,RDF HPBT,0.571,0.28,G7,0.28,1.225,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2800,3050
+Rifle,10,7mm Remington Magnum,0.284,9.5,162,ELD-X,0.631,0.318,G7,0.318,1.384,Hornady 2024 bullets+ammo poster,Sourced,2900,3150
+Rifle,10,7mm Remington Magnum,0.284,9.5,168,AccuBond LR,0.616,0.31,G7,0.31,1.435,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2850,3100
+Rifle,10,7mm Remington Magnum,0.284,9.5,175,AccuBond LR,0.648,0.326,G7,0.326,1.495,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2800,3050
+Rifle,11,.450 Bushmaster,0.452,16,250,FTX,0.21,,G1,0.21,0.843,Hornady 2024 bullets+ammo poster,Sourced,2100,2400
+Rifle,11,.450 Bushmaster,0.452,16,300,JHP,0.27,,G1,0.27,0.89,ESTIMATE - not verified,Estimate,1900,2150
+Rifle,12,7.62x39,0.311,9.5,123,FMJ,0.275,,G1,0.275,0.771,ESTIMATE - not verified,Estimate,2250,2500
+Rifle,12,7.62x39,0.311,9.5,125,SP,0.29,,G1,0.29,0.784,ESTIMATE - not verified,Estimate,2200,2450
+Rifle,13,7mm-08 Remington,0.284,9.5,150,ELD-X,0.574,0.289,G7,0.289,1.281,Hornady 2024 bullets+ammo poster,Sourced,2650,2950
+Rifle,13,7mm-08 Remington,0.284,9.5,150,AccuBond LR,0.546,0.275,G7,0.275,1.281,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2650,2950
+Rifle,13,7mm-08 Remington,0.284,9.5,168,AccuBond LR,0.616,0.31,G7,0.31,1.435,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2550,2800
+Rifle,14,.300 PRC,0.308,9,210,AccuBond LR,0.661,0.333,G7,0.333,1.525,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2850,3100
+Rifle,14,.300 PRC,0.308,9,225,ELD Match,0.777,0.391,G7,0.391,1.634,Hornady 2024 bullets+ammo poster,Sourced,2750,3000
+Rifle,15,.300 AAC Blackout,0.308,7,125,FMJ OTM,0.338,,G1,0.338,0.908,Sig Sauer Ballistics Data 2024,Sourced,2000,2300
+Rifle,15,.300 AAC Blackout,0.308,7,135,FTX,0.274,,G1,0.274,0.98,Hornady 2024 bullets+ammo poster,Sourced,1900,2200
+Rifle,15,.300 AAC Blackout,0.308,7,220,FMJ OTM subsonic,0.608,,G1,0.608,1.598,Sig Sauer Ballistics Data 2024,Sourced,950,1100
+Rifle,16,.30-30 Winchester,0.308,12,150,RN,0.2,,G1,0.2,0.899,ESTIMATE - not verified,Estimate,2250,2500
+Rifle,16,.30-30 Winchester,0.308,12,160,FTX,0.395,,G1,0.395,1.162,Hornady 2024 bullets+ammo poster,Sourced,2200,2450
+Rifle,16,.30-30 Winchester,0.308,12,170,RN,0.25,,G1,0.25,1.019,ESTIMATE - not verified,Estimate,2050,2350
+Rifle,17,.350 Legend,0.357,16,145,FTX,0.25,,G1,0.25,0.784,ESTIMATE - not verified,Estimate,2250,2500
+Rifle,17,.350 Legend,0.357,16,150,SP,0.23,,G1,0.23,0.714,ESTIMATE - not verified,Estimate,2200,2450
+Rifle,17,.350 Legend,0.357,16,180,SP,0.28,,G1,0.28,0.856,ESTIMATE - not verified,Estimate,2050,2300
+Rifle,18,.22-250 Remington,0.224,14,40,V-Max,0.221,,G1,0.221,0.549,ESTIMATE - not verified,Estimate,3400,3700
+Rifle,18,.22-250 Remington,0.224,14,55,SP,0.255,,G1,0.255,0.665,ESTIMATE - not verified,Estimate,3500,3900
+Rifle,18,.22-250 Remington,0.224,14,60,Partition,0.25,,G1,0.25,0.824,ESTIMATE - not verified,Estimate,3400,3700
+Rifle,19,6mm Creedmoor,0.243,7.5,103,ELD-X,0.512,0.258,G7,0.258,1.202,Hornady via ballistic-buddy.com 6mm CM table,Sourced,2950,3250
+Rifle,19,6mm Creedmoor,0.243,7.5,105,BTHP,0.53,0.234,G7,0.234,1.225,Hornady via ballistic-buddy.com 6mm CM table,Sourced,2900,3200
+Rifle,19,6mm Creedmoor,0.243,7.5,108,ELD Match,0.536,0.268,G7,0.268,1.26,Hornady via ballistic-buddy.com 6mm CM table,Sourced,2850,3100
+Rifle,20,.45-70 Government,0.458,20,250,MonoFlex,0.182,,G1,0.182,0.821,Hornady 2024 bullets+ammo poster,Sourced,2000,2250
+Rifle,20,.45-70 Government,0.458,20,325,FTX,0.23,,G1,0.23,1.067,Hornady 2024 bullets+ammo poster,Sourced,1900,2150
+Rifle,20,.45-70 Government,0.458,20,405,FP,0.27,,G1,0.27,1.097,ESTIMATE - not verified,Estimate,1150,1500
+Rifle,21,6.5 Grendel,0.264,8,100,ELD-VT,0.448,0.226,G7,0.226,0.989,Hornady 2024 bullets+ammo poster,Sourced,2600,2900
+Rifle,21,6.5 Grendel,0.264,8,123,ELD Match,0.506,0.255,G7,0.255,1.216,Hornady 2024 bullets+ammo poster,Sourced,2450,2700
+Rifle,22,.338 Lapua Magnum,0.338,9.5,250,SMK,,0.32,G7,0.32,1.508,ESTIMATE - not verified,Estimate,2850,3050
+Rifle,22,.338 Lapua Magnum,0.338,9.5,285,ELD Match,0.829,0.417,G7,0.417,1.719,Hornady 2024 bullets+ammo poster,Sourced,2700,2950
+Rifle,22,.338 Lapua Magnum,0.338,9.5,300,RDF,0.826,0.415,G7,0.415,1.809,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper) (.338 bullet),Sourced,2600,2850
+Rifle,23,.300 WSM,0.308,10,168,AccuBond LR,0.525,0.265,G7,0.265,1.22,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2850,3100
+Rifle,23,.300 WSM,0.308,10,190,AccuBond LR,0.64,0.325,G7,0.325,1.38,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2750,2950
+Rifle,23,.300 WSM,0.308,10,210,AccuBond LR,0.661,0.333,G7,0.333,1.525,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2650,2850
+Rifle,24,6.8 Western,0.277,8.5,145,ELD-X,0.536,0.27,G7,0.27,1.302,"Hornady 2024 bullets+ammo poster (.277 bullet, not 6.8W specific)",Sourced,2950,3200
+Rifle,24,6.8 Western,0.277,8.5,165,AccuBond LR,0.62,0.312,G7,0.312,1.482,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper) (.277 bullet),Sourced,2800,3050
+Rifle,25,.25-06 Remington,0.257,10,100,Trophy Copper,0.409,,G1,0.409,1.043,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,3100,3400
+Rifle,25,.25-06 Remington,0.257,10,110,ELD-X,0.465,0.234,G7,0.234,1.147,Hornady 2024 bullets+ammo poster,Sourced,3050,3300
+Rifle,26,.338 Winchester Magnum,0.338,10,265,AccuBond LR,0.732,0.369,G7,0.369,1.598,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2750,3000
+Rifle,26,.338 Winchester Magnum,0.338,10,300,AccuBond LR,0.785,0.394,G7,0.394,1.809,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2600,2850
+Rifle,27,.260 Remington,0.264,8,129,AccuBond LR,0.53,0.267,G7,0.267,1.275,Nosler 2025 catalog (AccuBond LR/RDF/Trophy Copper),Sourced,2800,3050
+Rifle,27,.260 Remington,0.264,8,130,ELD Match,0.554,0.279,G7,0.279,1.285,Hornady 2024 bullets+ammo poster,Sourced,2750,3050
+Rifle,28,7.62x54R,0.311,9.5,148,FMJ,,,G1,,0.928,NO DATA FOUND - enter manually,No data,2600,2850
+Rifle,28,7.62x54R,0.311,9.5,174,FMJ,,,G1,,1.091,NO DATA FOUND - enter manually,No data,2450,2700
+Rifle,29,5.45x39,0.221,7.9,53,FMJ,,,G1,,0.658,NO DATA FOUND - enter manually,No data,2850,3150
+Rifle,30,.50 BMG,0.51,15,647,A-MAX,,,G1,,1.714,NO DATA FOUND - enter manually,No data,2750,3000
+Rifle,30,.50 BMG,0.51,15,750,AMAX,,,G1,,1.987,NO DATA FOUND - enter manually,No data,2650,2900

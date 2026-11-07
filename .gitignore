@@ -21,3 +21,11 @@ validation-out/
 
 # Local backups of files before edits
 tools/backup-*/
+
+# Staging folder written by tools/cleanup.cmd
+_to_delete/
+
+# Large data archives (GitHub rejects files over 100 MB)
+*.tar.gz
+*.zip
+rasters*/

@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using FourTrac.Core.Geo;
@@ -15,7 +15,8 @@ public sealed record RunConfig(
     int Stride,
     int MaxDop,
     string OutDir,
-    bool WriteTrialsCsv);
+    bool WriteTrialsCsv,
+    string Suite = "legacy");
 
 /// <summary>
 /// 4TRAC.Validation - the V2 validation harness (PLAN.md Â§7).
@@ -54,14 +55,14 @@ public static class Program
             "full" => RunMatrix(WithAnchors(DesignMatrix.FullMatrix(cfg.Stride)), cfg),
             "anchors" => RunMatrix(DesignMatrix.AnchorCells(), cfg),
             "tornado" => RunTornado(cfg),
-            "flat" => FlatMatrix.Run(cfg.OutDir, cfg.Trials, cfg.Hypotheses, cfg.Seed),
+            "flat" => FlatMatrix.Run(cfg.OutDir, cfg.Trials, cfg.Hypotheses, cfg.Seed, cfg.Suite, cfg.MaxDop),
             _ => 2,
         };
     }
 
     private static RunConfig? Parse(string[] args)
     {
-        string mode = "full", outDir = "validation-out";
+        string mode = "full", outDir = "validation-out", suite = "legacy";
         int trials = -1, hypotheses = -1, stride = 1, dop = Environment.ProcessorCount;
         ulong seed = 20261022;
         bool trialsCsv = true;
@@ -81,6 +82,7 @@ public static class Program
                 case "--stride": int.TryParse(Next(), out stride); break;
                 case "--max-dop": int.TryParse(Next(), out dop); break;
                 case "--out": outDir = Next(); break;
+                case "--suite": suite = Next(); break;
                 case "--no-trials-csv": trialsCsv = false; break;
                 case "--help" or "-h":
                     Console.WriteLine(
@@ -94,6 +96,7 @@ public static class Program
                         "  --stride K                 keep every K-th matrix cell (cost control, default 1)\n" +
                         "  --max-dop N                parallel cells (default: logical processors)\n" +
                         "  --out DIR                  output directory (default validation-out)\n" +
+                        "  --suite legacy|spin|steep|down|all   flat mode only: spin-off shallow (default), spin-on, near-vertical rifle stress test, handgun firing down from height, or legacy+spin+down\n" +
                         "  --no-trials-csv            skip the per-trial CSV");
                     return null;
                 default:
@@ -109,10 +112,15 @@ public static class Program
         }
         if (trials <= 0) trials = mode == "smoke" ? 4 : mode == "tornado" ? 30 : mode == "flat" ? 40 : 200;
         if (hypotheses <= 0) hypotheses = mode == "full" ? 250 : mode == "flat" ? 500 : 20;
+        if (suite is not ("legacy" or "spin" or "steep" or "down" or "all"))
+        {
+            Console.Error.WriteLine($"Unknown suite: {suite} (--help)");
+            return null;
+        }
         if (stride < 1) stride = 1;
         if (dop < 1) dop = 1;
 
-        return new RunConfig(mode, trials, hypotheses, seed, stride, dop, outDir, trialsCsv);
+        return new RunConfig(mode, trials, hypotheses, seed, stride, dop, outDir, trialsCsv, suite);
     }
 
     /// <summary>Union the criterion anchors into a cell list (deduplicated by

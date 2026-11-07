@@ -59,6 +59,9 @@ public partial class MainViewModel : INotifyDataErrorInfo
         string? SpinRange(string s, double min, double max, string unit) =>
             SpinDriftOn ? Range(s, min, max, unit) : null;
 
+        double P(double imperial, double metric) => IsMetric ? metric : imperial;
+        string U(string imperial, string metric) => IsMetric ? metric : imperial;
+
         _rules = new()
         {
             [nameof(ImpactLat)] = ("Impact latitude", () => Range(ImpactLat, -90, 90, "degrees")),
@@ -68,27 +71,32 @@ public partial class MainViewModel : INotifyDataErrorInfo
             [nameof(IncidenceAngle)] = ("Angle of incidence", () => Range(IncidenceAngle, 0, 90, "degrees below horizontal", true, true)),
             [nameof(IncidenceAngleSigma)] = ("Angle of incidence sigma", () => Range(IncidenceAngleSigma, 0, 45, "degrees")),
             [nameof(Azimuth)] = ("Travel azimuth", () => Range(Azimuth, 0, 360, "degrees true")),
+            [nameof(Declination)] = ("Magnetic declination", () => Range(Declination, -60, 60, "degrees, east positive")),
             [nameof(AzimuthSigma)] = ("Azimuth sigma", () => Range(AzimuthSigma, 0, 90, "degrees")),
-            [nameof(BallisticCoefficient)] = ("Ballistic coefficient", () => Range(BallisticCoefficient, 0, 2, "lb/in2", true)),
+            [nameof(BallisticCoefficient)] = ("Ballistic coefficient", () => Range(BallisticCoefficient, 0, 2, "", true)),
             [nameof(BcSigmaPercent)] = ("BC sigma", () => Range(BcSigmaPercent, 0, 50, "%")),
-            [nameof(DiameterIn)] = ("Bullet diameter", () => SpinRange(DiameterIn, 0.1, 1.0, "in")),
+            [nameof(DiameterIn)] = ("Bullet diameter", () => SpinRange(DiameterIn, P(0.1, 2.5), P(1.0, 25.4), U("in", "mm"))),
             [nameof(MassGr)] = ("Bullet mass", () => SpinRange(MassGr, 1, 1000, "grains")),
-            [nameof(TwistIn)] = ("Twist rate", () => SpinRange(TwistIn, 1, 50, "in per turn")),
-            [nameof(LengthIn)] = ("Bullet length", () => SpinRange(LengthIn, 0.1, 5, "in")),
-            [nameof(MvMinFps)] = ("MV minimum", () => Range(MvMinFps, 100, 5000, "fps")),
+            [nameof(TwistIn)] = ("Twist rate", () => SpinRange(TwistIn, P(1, 25), P(50, 1270), U("in per turn", "mm per turn"))),
+            [nameof(LengthIn)] = ("Bullet length", () => SpinRange(LengthIn, P(0.1, 2.5), P(5, 127), U("in", "mm"))),
+            [nameof(MvMinFps)] = ("MV minimum", () => Range(MvMinFps, P(100, 30), P(5000, 1500), U("fps", "m/s"))),
             [nameof(MvMaxFps)] = ("MV maximum", () =>
             {
-                string? r = Range(MvMaxFps, 100, 5000, "fps");
+                string? r = Range(MvMaxFps, P(100, 30), P(5000, 1500), U("fps", "m/s"));
                 if (r is not null) return r;
                 if (TryParseNumber(MvMinFps, out double lo) && TryParseNumber(MvMaxFps, out double hi) && hi <= lo)
                     return "Must be greater than the MV minimum.";
                 return null;
             }),
-            [nameof(TemperatureF)] = ("Temperature", () => Range(TemperatureF, -100, 150, "F")),
-            [nameof(PressureInHg)] = ("Pressure", () => Range(PressureInHg, 10, 35, "inHg")),
+            [nameof(TemperatureF)] = ("Temperature", () => Range(TemperatureF, P(-100, -75), P(150, 65), U("deg F", "deg C"))),
+            [nameof(PressureInHg)] = ("Pressure", () => Range(PressureInHg, P(10, 340), P(35, 1185), U("inHg", "hPa"))),
             [nameof(RelativeHumidity)] = ("Relative humidity", () => Range(RelativeHumidity, 0, 100, "%")),
-            [nameof(WindSpeedMph)] = ("Wind speed", () => Range(WindSpeedMph, 0, 200, "mph")),
-            [nameof(WindFromDeg)] = ("Wind direction", () => Range(WindFromDeg, 0, 360, "degrees true (direction wind blows from)")),
+            [nameof(WindSpeedMph)] = ("Wind speed", () => WindIsCrosswind ? null : Range(WindSpeedMph, 0, P(200, 90), U("mph", "m/s"))),
+            [nameof(Crosswind)] = ("Crosswind", () => WindIsCrosswind ? Range(Crosswind, 0, P(200, 90), U("mph", "m/s")) : null),
+            [nameof(WindAloftSpeed)] = ("Wind aloft speed", () => WindIsCrosswind ? null : Range(WindAloftSpeed, 0, P(200, 90), U("mph", "m/s"))),
+            [nameof(WindAloftFromDeg)] = ("Wind aloft direction", () => WindIsCrosswind ? null : Range(WindAloftFromDeg, 0, 360, "degrees true (direction wind blows from)")),
+            [nameof(WindAloftHeight)] = ("Wind aloft height", () => WindIsCrosswind ? null : Range(WindAloftHeight, 0, 5000, "m above the impact plane (0 = no second layer)")),
+            [nameof(WindFromDeg)] = ("Wind direction", () => WindIsCrosswind ? null : Range(WindFromDeg, 0, 360, "degrees true (direction wind blows from)")),
             [nameof(WindSigma)] = ("Wind sigma", () => Range(WindSigma, 0, 20, "m/s")),
             [nameof(Hypotheses)] = ("Hypotheses", () =>
             {
@@ -121,6 +129,11 @@ public partial class MainViewModel : INotifyDataErrorInfo
                 if (name == nameof(MvMinFps)) Validate(nameof(MvMaxFps));
                 if (name == nameof(MvMaxFps)) Validate(nameof(MvMinFps));
             }
+            else if (name == nameof(WindModeIndex))
+            {
+                foreach (var n in new[] { nameof(WindSpeedMph), nameof(WindFromDeg), nameof(Crosswind), nameof(WindAloftSpeed), nameof(WindAloftFromDeg), nameof(WindAloftHeight) })
+                    Validate(n);
+            }
             else if (name == nameof(SpinDriftOn))
             {
                 foreach (var n in new[] { nameof(DiameterIn), nameof(MassGr), nameof(TwistIn), nameof(LengthIn) })
@@ -128,6 +141,12 @@ public partial class MainViewModel : INotifyDataErrorInfo
             }
         };
 
+        foreach (var key in _rules.Keys) Validate(key);
+    }
+
+    private void RevalidateAll()
+    {
+        if (_rules is null) return;
         foreach (var key in _rules.Keys) Validate(key);
     }
 

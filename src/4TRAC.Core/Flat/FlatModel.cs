@@ -14,7 +14,7 @@ namespace FourTrac.Core.Flat;
 ///
 /// State y = [x, y, z, vx, vy, vz]: x east, y north, z up (metres, seconds). The
 /// frame is anchored at the impact point; z = 0 is the impact plane. Wind is a
-/// constant air-motion vector (east, north) in m/s. Atmosphere heights are the
+/// air-motion vector (east, north) in m/s: constant, or with an optional two-layer change aloft (FlatWindShear). Atmosphere heights are the
 /// anchor height plus z.
 /// </summary>
 public sealed class FlatTrajectoryModel : IOdeSystem
@@ -29,6 +29,9 @@ public sealed class FlatTrajectoryModel : IOdeSystem
     private readonly double _sinLat;
     private readonly double _cosLat;
     private readonly bool _coriolis;
+    private readonly double _shearE;
+    private readonly double _shearN;
+    private readonly double _shearH;
 
     public FlatTrajectoryModel(
         IDragModel drag,
@@ -36,7 +39,8 @@ public sealed class FlatTrajectoryModel : IOdeSystem
         double latDeg,
         double windEastMps,
         double windNorthMps,
-        bool coriolis)
+        bool coriolis,
+        FlatWindShear? shear = null)
     {
         _drag = drag ?? throw new ArgumentNullException(nameof(drag));
         _atmosphere = atmosphere ?? throw new ArgumentNullException(nameof(atmosphere));
@@ -46,6 +50,12 @@ public sealed class FlatTrajectoryModel : IOdeSystem
         _windEast = windEastMps;
         _windNorth = windNorthMps;
         _coriolis = coriolis;
+        if (shear is { IsActive: true })
+        {
+            _shearE = shear.DeltaEastMps;
+            _shearN = shear.DeltaNorthMps;
+            _shearH = shear.HeightM;
+        }
     }
 
     public int Dimension => 6;
@@ -55,8 +65,16 @@ public sealed class FlatTrajectoryModel : IOdeSystem
         double vx = y[3], vy = y[4], vz = y[5];
         double ax = 0.0, ay = 0.0, az = -Gravity;
 
-        double avx = vx - _windEast;
-        double avy = vy - _windNorth;
+        double wE = _windEast, wN = _windNorth;
+        if (_shearH > 0.0)
+        {
+            double f = y[2] <= 0.0 ? 0.0 : (y[2] >= _shearH ? 1.0 : y[2] / _shearH);
+            wE += f * _shearE;
+            wN += f * _shearN;
+        }
+
+        double avx = vx - wE;
+        double avy = vy - wN;
         double avz = vz;
         double s = Math.Sqrt(avx * avx + avy * avy + avz * avz);
         if (s > 1e-9)
